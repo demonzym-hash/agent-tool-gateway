@@ -30,6 +30,42 @@ Not included in v0.1.0:
 - Enterprise approval system integrations.
 - Full AgentOps or connector marketplace.
 
+## Edition Boundary
+
+ATG has a public core and may also offer commercial or enterprise capabilities. The boundary should stay transparent.
+
+Public core direction:
+
+- Agent-to-HTTP-Tool governance gateway.
+- Agent identity, Tool registry, policy decisions, approval, redaction, credential isolation, and audit logs.
+- Web Console for the core governance loop.
+- Docker Compose deployment for demos and single-server evaluation.
+- REST, MCP, Dify, Python SDK, TypeScript SDK, and OpenAPI examples.
+- Low-friction built-in policy engine.
+- Core reliability improvements that keep the MVP safe and usable.
+
+Commercial or enterprise direction:
+
+- SSO/OIDC, enterprise RBAC/ABAC, teams, tenants, and organization controls.
+- HA, production Kubernetes/Helm deployment support, backup, disaster recovery, and SLA-backed operations.
+- Vault/KMS/SIEM/syslog/webhook integrations.
+- Enterprise approval workflow integrations.
+- Long-term audit retention, compliance reporting, and externally anchored audit evidence.
+- OPA/Rego or Cedar adapters for enterprises that already standardize on external policy engines.
+- A2A gateway governance and Agent-to-Agent delegation controls.
+- mTLS, SPIFFE/SPIRE, short-lived delegation tokens, and zero-trust workload identity.
+- Sandboxed execution for code, shell, browser, or untrusted plugin Tools.
+- Go/Rust data-plane components for high-throughput proxying, sidecar deployment, or low-footprint enterprise runtimes.
+- Private deployment help, proprietary embedding, OEM redistribution, supported enterprise builds, and commercial licensing.
+
+Public examples or limited adapters may still be added when they help adoption, but production-grade versions of these capabilities are commercial/enterprise candidates:
+
+- OPA/Rego or Cedar policy adapters.
+- A2A gateway support and Agent-to-Agent delegation.
+- mTLS, SPIFFE/SPIRE, and short-lived delegation tokens.
+- Sandboxed execution for future code, shell, browser, or untrusted plugin Tools.
+- Go/Rust data-plane components for high-throughput proxying or sidecar deployment.
+
 ## v0.1.x Stabilization
 
 Focus:
@@ -39,25 +75,60 @@ Focus:
 - Improve error messages and release checks.
 - Keep examples and SDKs aligned with the MVP API.
 
-## v0.2.0 Policy And Reliability
+## v0.2.0 Policy Clarity
 
 Focus:
 
-- Policy composition semantics so `deny`, `approve`, and `redact` can work together in one evaluation path.
+- Keep the built-in policy engine simple, but make policy behavior easier to understand and review.
+- Policy composition semantics for the built-in engine so `deny`, `approve`, and `redact` can work together in one evaluation path.
 - Clear policy hit explanations for admins.
-- Stronger database constraints for status and action fields.
-- Real PostgreSQL integration tests for transactions, approval concurrency, and audit consistency.
-- Cleaner service-layer separation inside the server.
+- Policy preview improvements for explaining matched rules before execution.
+- Regression tests for policy ordering, composition, and redaction interactions.
 
-## v0.3.0 Lightweight Team Controls
+## v0.3.0 Persistence Reliability
+
+Focus:
+
+- Stronger database constraints for status and action fields.
+- Real PostgreSQL integration tests for transactions, approval concurrency, status transitions, and audit consistency.
+- Migration safety improvements for single-server deployments.
+- Cleaner service-layer separation inside the server where it reduces operational risk.
+
+## v0.4.0 Lightweight Team Controls
 
 Focus:
 
 - Lightweight users and teams.
 - Basic roles such as Admin, Developer, and Approver.
+- Web Console flows for assigning responsibility without introducing full enterprise IAM.
+- Keep SSO/OIDC, ABAC, and multi-tenant organization controls in the commercial/enterprise track.
+
+## v0.5.0 Evidence Export
+
+Focus:
+
 - Better audit export for customer reviews.
-- Optional examples for Feishu, WeCom, DingTalk, or similar approval systems.
+- Clearer evidence packages for invocations, approvals, audit logs, and policy snapshots.
+- Tamper-evident audit groundwork, such as canonical event payloads and optional hash chaining.
+- Keep long-term retention, compliance reporting, and externally anchored evidence in the commercial/enterprise track.
+
+## v0.6.0 Deployment Hardening
+
+Focus:
+
 - More deployment guidance for production-like single-server setups.
+- Optional basic Helm chart or Kubernetes example for evaluation environments.
+- Clear upgrade, backup, restore, and secret-management guidance.
+- Keep production HA, SLA-backed operations, and managed private deployment in the commercial/enterprise track.
+
+## v0.7.0 Protocol And Runtime Exploration
+
+Focus:
+
+- A2A (Agent2Agent) protocol exploration: proxy A2A-compatible agent endpoints through ATG so inter-agent tasks can reuse the same policy, approval, delegation, and audit path.
+- Delegation context for Agent-to-Agent and Agent-to-Tool calls, including caller, subject, purpose, scope, expiry, and trace IDs.
+- Go/Rust data-plane evaluation for high-throughput HTTP proxying, sidecar deployment, or low-footprint runtime scenarios.
+- Keep production-grade A2A governance, zero-trust identity, sandboxing, and Go/Rust enterprise runtimes in the commercial/enterprise track unless user feedback shows a clear public-core need.
 
 ## Long-Term Direction
 
@@ -70,8 +141,15 @@ Longer-term work may include:
 - SSO/OIDC.
 - Advanced RBAC or ABAC.
 - Multi-tenant workspaces.
+- Workload identity and zero-trust deployment options, such as mTLS and SPIFFE/SPIRE.
+- Short-lived delegation tokens for permission propagation across Agent-to-Agent and Agent-to-Tool flows.
+- First-class A2A gateway support, including Agent Card discovery, task delegation governance, cross-agent traceability, and policy checks before one agent delegates work to another.
 - Vault/KMS integrations.
 - SIEM/syslog/webhook integrations.
 - Kubernetes and Helm deployment.
+- Sandboxed execution for future code, shell, browser, or untrusted plugin Tools.
+- Tamper-evident or externally anchored audit chains for stronger compliance evidence.
+- Optional Go/Rust runtime components for the performance-sensitive data plane, while keeping the control plane and Web Console developer-friendly.
 - Enterprise approval workflows.
 - Policy simulation and replay tools.
+- Interoperability guidance for agent governance stacks such as Microsoft Agent Governance Toolkit, with ATG focused on the standalone enterprise API gateway layer.
