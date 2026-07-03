@@ -1,0 +1,143 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Customer Order API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://customer-api.example.com"
+    }
+  ],
+  "paths": {
+    "/v1/orders/lookup": {
+      "post": {
+        "operationId": "lookupOrder",
+        "summary": "Look up a customer order",
+        "x-atg-risk-level": "medium",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LookupOrderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupOrderResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/customers/search": {
+      "get": {
+        "operationId": "searchCustomers",
+        "summary": "Search customers by keyword",
+        "x-atg-risk-level": "low",
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer search results"
+          }
+        }
+      }
+    },
+    "/v1/orders/{order_id}": {
+      "get": {
+        "operationId": "getOrderById",
+        "summary": "Get one customer order by ID",
+        "x-atg-risk-level": "low",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include_sensitive_fields",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupOrderResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LookupOrderRequest": {
+        "type": "object",
+        "required": ["order_id"],
+        "additionalProperties": false,
+        "properties": {
+          "order_id": {
+            "type": "string"
+          },
+          "include_sensitive_fields": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "LookupOrderResponse": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "customer_email": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

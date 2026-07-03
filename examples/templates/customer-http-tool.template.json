@@ -1,0 +1,38 @@
+{
+  "name": "customer_order_lookup",
+  "description": "Customer API Tool template for an integrator PoC",
+  "endpoint": "https://customer-api.example.com/v1/orders/lookup",
+  "method": "POST",
+  "risk_level": "medium",
+  "timeout_ms": 5000,
+  "headers": {
+    "Authorization": "Bearer replace-with-customer-token",
+    "x-customer-env": "test"
+  },
+  "input_schema": {
+    "type": "object",
+    "required": ["order_id"],
+    "additionalProperties": false,
+    "properties": {
+      "order_id": {
+        "type": "string",
+        "description": "Customer order identifier approved for Agent use"
+      },
+      "include_sensitive_fields": {
+        "type": "boolean",
+        "description": "Keep false unless the PoC explicitly tests redaction"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "order_id": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      }
+    }
+  }
+}

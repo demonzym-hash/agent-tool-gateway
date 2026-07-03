@@ -1,0 +1,11 @@
+{
+  "name": "@atg/mcp-client-example",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/index.js",
+    "start": "node src/index.js"
+  }
+}

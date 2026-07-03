@@ -1,0 +1,25 @@
+{
+  "name": "@atg/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  },
+  "scripts": {
+    "check": "node --check src/index.js && node --check examples/tool-demo.js && npx tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 examples/types-check.mts",
+    "start": "node examples/tool-demo.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

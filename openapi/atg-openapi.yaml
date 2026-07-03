@@ -1,0 +1,826 @@
+openapi: 3.1.0
+info:
+  title: Agent Tool Gateway API
+  version: 0.1.0
+  description: >
+    ATG v0.1 API for registering Agents and HTTP Tools, invoking tools through
+    policy/approval/redaction/audit controls, and exposing the same tool path
+    through a minimal MCP JSON-RPC endpoint.
+servers:
+  - url: http://localhost:8080
+    description: Local host development
+security:
+  - AdminToken: []
+tags:
+  - name: Health
+  - name: Agents
+  - name: Tools
+  - name: Policies
+  - name: Invocations
+  - name: Approvals
+  - name: Audit Logs
+  - name: MCP
+paths:
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Check server and database health
+      security: []
+      responses:
+        "200":
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    const: ok
+  /api/v1/agents:
+    get:
+      tags: [Agents]
+      summary: List agents
+      responses:
+        "200":
+          description: Agent list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Agent"
+    post:
+      tags: [Agents]
+      summary: Create an agent and return its one-time API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentCreate"
+      responses:
+        "201":
+          description: Created agent and one-time API key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent:
+                    $ref: "#/components/schemas/Agent"
+                  api_key:
+                    type: string
+                    description: Returned only when creating or rotating an Agent key.
+  /api/v1/agents/{id}:
+    get:
+      tags: [Agents]
+      summary: Get an agent
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Agent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent:
+                    $ref: "#/components/schemas/Agent"
+  /api/v1/agents/{id}/rotate-key:
+    post:
+      tags: [Agents]
+      summary: Rotate an agent API key
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Rotated key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent:
+                    $ref: "#/components/schemas/Agent"
+                  api_key:
+                    type: string
+  /api/v1/agents/{id}/disable:
+    post:
+      tags: [Agents]
+      summary: Disable an agent
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Disabled agent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent:
+                    $ref: "#/components/schemas/Agent"
+  /api/v1/tools:
+    get:
+      tags: [Tools]
+      summary: List tools
+      responses:
+        "200":
+          description: Tool list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tools:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Tool"
+    post:
+      tags: [Tools]
+      summary: Create an HTTP tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToolCreate"
+      responses:
+        "201":
+          description: Created tool
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tool:
+                    $ref: "#/components/schemas/Tool"
+  /api/v1/tools/{id}:
+    get:
+      tags: [Tools]
+      summary: Get a tool
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Tool
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tool:
+                    $ref: "#/components/schemas/Tool"
+  /api/v1/tools/{id}/test:
+    post:
+      tags: [Tools]
+      summary: Test a tool as an admin
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Redacted tool response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolTestResult"
+  /api/v1/tools/{id}/disable:
+    post:
+      tags: [Tools]
+      summary: Disable a tool
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Disabled tool
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tool:
+                    $ref: "#/components/schemas/Tool"
+  /api/v1/policies:
+    get:
+      tags: [Policies]
+      summary: List policies
+      parameters:
+        - name: action
+          in: query
+          schema:
+            type: string
+            enum: [allow, deny, approve, redact]
+          description: Filter policies by action.
+        - name: enabled
+          in: query
+          schema:
+            type: boolean
+          description: Filter policies by enabled state.
+      responses:
+        "200":
+          description: Policy list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policies:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Policy"
+    post:
+      tags: [Policies]
+      summary: Create a policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PolicyCreate"
+      responses:
+          "201":
+            description: Created policy
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    policy:
+                      $ref: "#/components/schemas/Policy"
+  /api/v1/policies/{id}:
+    get:
+      tags: [Policies]
+      summary: Get one policy
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Policy details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/Policy"
+  /api/v1/policies/{id}/disable:
+    post:
+      tags: [Policies]
+      summary: Disable a policy
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Disabled policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/Policy"
+  /api/v1/policies/evaluate:
+    post:
+      tags: [Policies]
+      summary: Evaluate enabled policies without invoking a Tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PolicyEvaluateRequest"
+      responses:
+        "200":
+          description: Policy decision preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyEvaluateResult"
+  /api/v1/invoke/{tool_name}:
+    post:
+      tags: [Invocations]
+      summary: Invoke a registered tool with an Agent API key
+      security:
+        - AgentApiKey: []
+      parameters:
+        - name: tool_name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Tool executed or denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvocationResult"
+        "202":
+          description: Tool call is waiting for approval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PendingApprovalResult"
+  /api/v1/invocations:
+    get:
+      tags: [Invocations]
+      summary: List invocations with filters
+      parameters:
+        - name: agent_id
+          in: query
+          schema: { type: string }
+        - name: tool_id
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        "200":
+          description: Invocation list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invocations:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Invocation"
+  /api/v1/invocations/{id}:
+    get:
+      tags: [Invocations]
+      summary: Get one invocation with Agent and Tool names
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Invocation details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invocation:
+                    $ref: "#/components/schemas/Invocation"
+  /api/v1/approvals:
+    get:
+      tags: [Approvals]
+      summary: List approvals with filters
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        "200":
+          description: Approval list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  approvals:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Approval"
+  /api/v1/approvals/{id}:
+    get:
+      tags: [Approvals]
+      summary: Get one approval
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Approval details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  approval:
+                    $ref: "#/components/schemas/Approval"
+  /api/v1/approvals/{id}/approve:
+    post:
+      tags: [Approvals]
+      summary: Approve and execute a pending invocation
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalDecision"
+      responses:
+        "200":
+          description: Approval execution result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalExecutionResult"
+  /api/v1/approvals/{id}/reject:
+    post:
+      tags: [Approvals]
+      summary: Reject a pending invocation
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalDecision"
+      responses:
+        "200":
+          description: Rejected approval
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    const: rejected
+                  approval:
+                    $ref: "#/components/schemas/Approval"
+                  invocation_id:
+                    type: string
+                  audit_id:
+                    type: string
+  /api/v1/audit-logs:
+    get:
+      tags: [Audit Logs]
+      summary: List audit logs with filters
+      parameters:
+        - name: event_type
+          in: query
+          schema: { type: string }
+        - name: actor_type
+          in: query
+          schema: { type: string }
+        - name: resource_type
+          in: query
+          schema: { type: string }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        "200":
+          description: Audit log list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  audit_logs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditLog"
+  /api/v1/audit-logs/{id}:
+    get:
+      tags: [Audit Logs]
+      summary: Get one audit log
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Audit log details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  audit_log:
+                    $ref: "#/components/schemas/AuditLog"
+  /mcp:
+    post:
+      tags: [MCP]
+      summary: Minimal MCP JSON-RPC endpoint
+      description: Supports `initialize`, `tools/list`, and `tools/call`.
+      security:
+        - AgentApiKey: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonRpcRequest"
+      responses:
+        "200":
+          description: JSON-RPC response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonRpcResponse"
+components:
+  securitySchemes:
+    AdminToken:
+      type: apiKey
+      in: header
+      name: x-admin-token
+      description: Required only when the server is started with ADMIN_TOKEN.
+    AgentApiKey:
+      type: http
+      scheme: bearer
+      description: Agent API key returned once on Agent creation or key rotation.
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    AgentCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        source_type: { type: string, default: custom }
+        owner: { type: string }
+    Agent:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        source_type: { type: string }
+        owner: { type: string }
+        status: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ToolCreate:
+      type: object
+      required: [name, endpoint]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        type: { type: string, const: http, default: http }
+        risk_level: { type: string, default: low }
+        endpoint:
+          type: string
+          format: uri
+          description: HTTP endpoint. Simple path placeholders such as `{order_id}` are replaced from Tool input at call time.
+        method:
+          type: string
+          enum: [GET, POST]
+          default: POST
+        headers:
+          type: object
+          additionalProperties: { type: string }
+        timeout_ms:
+          type: integer
+          minimum: 100
+          maximum: 60000
+          default: 5000
+        input_schema:
+          type: object
+          additionalProperties: true
+        output_schema:
+          type: object
+          additionalProperties: true
+        owner: { type: string }
+    Tool:
+      allOf:
+        - $ref: "#/components/schemas/ToolCreate"
+        - type: object
+          properties:
+            id: { type: string }
+            status: { type: string }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+    ToolTestResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, failed]
+        http_status: { type: integer }
+        data: {}
+    PolicyCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        priority: { type: integer, default: 100 }
+        scope:
+          type: object
+          description: >
+            Optional policy metadata. For redact policies, use scope.redaction.fields
+            to mask field names, dotted object paths, or simple JSONPath paths as "***", and
+            scope.redaction.patterns to apply regex replacements to string values.
+          additionalProperties: true
+          properties:
+            redaction:
+              type: object
+              properties:
+                fields:
+                  type: array
+                  items:
+                    type: string
+                  examples:
+                    - [account_number, $.profile.external_id]
+                patterns:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      pattern:
+                        type: string
+                      flags:
+                        type: string
+                        default: g
+                      replacement:
+                        type: string
+                        default: "***"
+        condition_json:
+          type: object
+          additionalProperties: true
+        action:
+          type: string
+          enum: [allow, deny, approve, redact]
+          default: allow
+        enabled:
+          type: boolean
+          default: true
+      Policy:
+        allOf:
+          - $ref: "#/components/schemas/PolicyCreate"
+          - type: object
+            properties:
+              id: { type: string }
+              created_at: { type: string, format: date-time }
+              updated_at: { type: string, format: date-time }
+      PolicyEvaluateRequest:
+        type: object
+        required: [agent_id]
+        properties:
+          agent_id: { type: string }
+          tool_id: { type: string }
+          tool_name: { type: string }
+          input:
+            type: object
+            additionalProperties: true
+      PolicyEvaluateResult:
+        type: object
+        properties:
+          decision:
+            type: object
+            additionalProperties: true
+          agent:
+            $ref: "#/components/schemas/Agent"
+          tool:
+            $ref: "#/components/schemas/Tool"
+      InvocationResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, denied, failed]
+        invocation_id: { type: string }
+        audit_id: { type: string }
+        data: {}
+        reason: { type: string }
+        matched_policy: {}
+    PendingApprovalResult:
+      type: object
+      properties:
+        status:
+          type: string
+          const: pending_approval
+        invocation_id: { type: string }
+        approval_id: { type: string }
+        audit_id: { type: string }
+        reason: { type: string }
+        matched_policy: {}
+    Invocation:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        agent_id: { type: string }
+        tool_id: { type: string }
+        agent_name: { type: string }
+        tool_name: { type: string }
+        status: { type: string }
+        request_args: {}
+        response_data_redacted: {}
+        policy_decision: {}
+        matched_policy_id: { type: string }
+        approval_id: { type: string }
+        latency_ms: { type: integer }
+        error_message: { type: string }
+        created_at: { type: string, format: date-time }
+    ApprovalDecision:
+      type: object
+      properties:
+        approver:
+          type: string
+          default: local-approver
+        comment:
+          type: string
+    Approval:
+      type: object
+      properties:
+        id: { type: string }
+        invocation_id: { type: string }
+        approver: { type: string }
+        status: { type: string }
+        reason: { type: string }
+        comment: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ApprovalExecutionResult:
+      type: object
+      properties:
+        status: { type: string }
+        approval:
+          $ref: "#/components/schemas/Approval"
+        invocation_id: { type: string }
+        audit_id: { type: string }
+        data: {}
+    AuditLog:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        event_type: { type: string }
+        actor_type: { type: string }
+        actor_id: { type: string }
+        resource_type: { type: string }
+        resource_id: { type: string }
+        detail_json: {}
+        created_at: { type: string, format: date-time }
+    JsonRpcRequest:
+      type: object
+      required: [jsonrpc, method]
+      properties:
+        jsonrpc:
+          type: string
+          const: "2.0"
+        id: {}
+        method:
+          type: string
+          examples: [initialize, tools/list, tools/call]
+        params:
+          type: object
+          additionalProperties: true
+    JsonRpcResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          const: "2.0"
+        id: {}
+        result: {}
+        error: {}
