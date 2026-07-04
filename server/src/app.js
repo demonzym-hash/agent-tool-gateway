@@ -416,7 +416,11 @@ export function createApp({
          RETURNING *`,
         [approver, comment, approvalId],
       );
-      if (!approvalResult.rowCount) throw notFound("Pending approval");
+      if (!approvalResult.rowCount) {
+        const existingApproval = await txQuery("SELECT * FROM approvals WHERE id = $1", [approvalId]);
+        if (!existingApproval.rowCount) throw notFound("Approval");
+        throw new HttpError(409, "approval_already_decided", "Approval is no longer pending");
+      }
 
       const invocationResult = await txQuery(
         `SELECT i.*, a.name AS agent_name, t.name AS tool_name, t.endpoint, t.method, t.headers, t.timeout_ms, t.auth_config_encrypted, t.input_schema
@@ -988,7 +992,11 @@ export function createApp({
            RETURNING *`,
           [input.approver, input.comment, req.params.id],
         );
-        if (!updatedApprovalResult.rowCount) throw notFound("Pending approval");
+        if (!updatedApprovalResult.rowCount) {
+          const existingApproval = await txQuery("SELECT * FROM approvals WHERE id = $1", [req.params.id]);
+          if (!existingApproval.rowCount) throw notFound("Approval");
+          throw new HttpError(409, "approval_already_decided", "Approval is no longer pending");
+        }
 
         const approval = updatedApprovalResult.rows[0];
         const updatedInvocationResult = await txQuery(

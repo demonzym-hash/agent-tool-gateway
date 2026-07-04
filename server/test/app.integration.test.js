@@ -279,7 +279,7 @@ function createFakeDb() {
     }
 
     if (normalized.startsWith("UPDATE approvals SET status = 'rejected'")) {
-      const approval = db.approvals.find((item) => item.id === params[2]);
+      const approval = db.approvals.find((item) => item.id === params[2] && item.status === "pending");
       if (!approval) return result([]);
       approval.status = "rejected";
       approval.approver = params[0];
@@ -1413,6 +1413,22 @@ describe("ATG API flow", () => {
     assert.equal(approved.data.data.status, "approved");
     assert.equal(targetCallCount, 1);
 
+    const secondApprove = await jsonFetch(`${atgBaseUrl}/api/v1/approvals/${pending.data.approval_id}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ approver: "alice", comment: "approved again" }),
+    });
+    assert.equal(secondApprove.response.status, 409);
+    assert.equal(secondApprove.data.error.code, "approval_already_decided");
+    assert.equal(targetCallCount, 1);
+
+    const rejectAfterApprove = await jsonFetch(`${atgBaseUrl}/api/v1/approvals/${pending.data.approval_id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ approver: "bob", comment: "too late" }),
+    });
+    assert.equal(rejectAfterApprove.response.status, 409);
+    assert.equal(rejectAfterApprove.data.error.code, "approval_already_decided");
+    assert.equal(targetCallCount, 1);
+
     const invocation = fake.db.invocations.find((item) => item.id === pending.data.invocation_id);
     assert.equal(invocation.status, "success");
     assert.equal(invocation.response_data_redacted.status, "approved");
@@ -1533,6 +1549,22 @@ describe("ATG API flow", () => {
     assert.equal(rejected.response.status, 200);
     assert.equal(rejected.data.status, "rejected");
     assert.equal(rejected.data.approval.status, "rejected");
+    assert.equal(targetCallCount, 0);
+
+    const approveAfterReject = await jsonFetch(`${atgBaseUrl}/api/v1/approvals/${pending.data.approval_id}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ approver: "alice", comment: "too late" }),
+    });
+    assert.equal(approveAfterReject.response.status, 409);
+    assert.equal(approveAfterReject.data.error.code, "approval_already_decided");
+    assert.equal(targetCallCount, 0);
+
+    const secondReject = await jsonFetch(`${atgBaseUrl}/api/v1/approvals/${pending.data.approval_id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ approver: "bob", comment: "still too risky" }),
+    });
+    assert.equal(secondReject.response.status, 409);
+    assert.equal(secondReject.data.error.code, "approval_already_decided");
     assert.equal(targetCallCount, 0);
 
     const invocation = fake.db.invocations.find((item) => item.id === pending.data.invocation_id);
