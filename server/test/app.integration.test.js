@@ -1298,6 +1298,26 @@ describe("ATG API flow", () => {
     const invalidApprovalDate = await jsonFetch(`${atgBaseUrl}/api/v1/approvals?from=not-a-date`);
     assert.equal(invalidApprovalDate.response.status, 400);
     assert.equal(invalidApprovalDate.data.error.code, "invalid_request");
+
+    const evidence = await jsonFetch(
+      `${atgBaseUrl}/api/v1/evidence/export?invocation_tool_id=${createdTool.data.tool.id}&invocation_status=success&audit_event_type=tool.invoke.succeeded&approval_status=pending&limit=5`,
+    );
+    assert.equal(evidence.response.status, 200);
+    assert.equal(evidence.data.evidence.manifest.format, "atg.evidence.export.v1");
+    assert.equal(evidence.data.evidence.manifest.filters.invocation_tool_id, createdTool.data.tool.id);
+    assert.equal(evidence.data.evidence.manifest.counts.invocations, evidence.data.evidence.datasets.invocations.length);
+    assert.equal(evidence.data.evidence.manifest.counts.audit_logs, evidence.data.evidence.datasets.audit_logs.length);
+    assert.equal(evidence.data.evidence.datasets.invocations.every((item) => item.tool_id === createdTool.data.tool.id), true);
+    assert.equal(evidence.data.evidence.datasets.invocations.every((item) => item.status === "success"), true);
+    assert.equal(evidence.data.evidence.datasets.audit_logs.every((item) => item.event_type === "tool.invoke.succeeded"), true);
+    assert.equal(evidence.data.evidence.datasets.approvals.every((item) => item.status === "pending"), true);
+    assert.match(evidence.data.evidence.manifest.dataset_hashes.invocations_sha256, /^[0-9a-f]{64}$/);
+    assert.match(evidence.data.evidence.manifest.dataset_hashes.audit_logs_sha256, /^[0-9a-f]{64}$/);
+    assert.match(evidence.data.evidence.manifest.manifest_sha256, /^[0-9a-f]{64}$/);
+
+    const invalidEvidenceDate = await jsonFetch(`${atgBaseUrl}/api/v1/evidence/export?from=not-a-date`);
+    assert.equal(invalidEvidenceDate.response.status, 400);
+    assert.equal(invalidEvidenceDate.data.error.code, "invalid_request");
   });
 
   it("creates a pending approval for approve policies before reaching the target API", async () => {

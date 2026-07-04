@@ -26,6 +26,7 @@ import {
   ApiOutlined,
   AuditOutlined,
   DeleteOutlined,
+  DownloadOutlined,
   EyeOutlined,
   KeyOutlined,
   PlayCircleOutlined,
@@ -192,6 +193,8 @@ const zhText = {
   Language: "语言",
   Chinese: "中文",
   English: "English",
+  "Export Evidence": "导出证据",
+  "Evidence exported": "证据已导出",
 };
 
 function translate(language, text) {
@@ -394,6 +397,24 @@ export default function App() {
     }
     const query = params.toString();
     return query ? `${path}?${query}` : path;
+  }
+
+  function evidenceQuery() {
+    const params = new URLSearchParams();
+    if (logFilters.limit) params.set("limit", String(logFilters.limit));
+    if (logFilters.invocation_agent_id) params.set("invocation_agent_id", logFilters.invocation_agent_id);
+    if (logFilters.invocation_tool_id) params.set("invocation_tool_id", logFilters.invocation_tool_id);
+    if (logFilters.invocation_status) params.set("invocation_status", logFilters.invocation_status);
+    if (logFilters.approval_status) params.set("approval_status", logFilters.approval_status);
+    if (logFilters.audit_event_type) params.set("audit_event_type", logFilters.audit_event_type);
+    if (logFilters.audit_actor_type) params.set("audit_actor_type", logFilters.audit_actor_type);
+    if (logFilters.audit_resource_type) params.set("audit_resource_type", logFilters.audit_resource_type);
+    if (logFilters.from) params.set("from", new Date(logFilters.from).toISOString());
+    if (logFilters.to) params.set("to", new Date(logFilters.to).toISOString());
+    if (policyFilters.action) params.set("policy_action", policyFilters.action);
+    if (policyFilters.enabled) params.set("policy_enabled", policyFilters.enabled);
+    const query = params.toString();
+    return query ? `/api/v1/evidence/export?${query}` : "/api/v1/evidence/export";
   }
 
   function resetLogFilters() {
@@ -684,6 +705,26 @@ export default function App() {
     try {
       const data = await api(`/api/v1/policies/${policy.id}`, { method: "GET" });
       setSelectedPolicy(data.policy);
+    } catch (error) {
+      message.error(error.message);
+    }
+  }
+
+  async function downloadEvidence() {
+    try {
+      const data = await api(evidenceQuery());
+      const generatedAt = data.evidence?.manifest?.generated_at || new Date().toISOString();
+      const fileName = `atg-evidence-${generatedAt.replace(/[:.]/g, "-")}.json`;
+      const blob = new Blob([`${JSON.stringify(data.evidence, null, 2)}\n`], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      message.success(t("Evidence exported"));
     } catch (error) {
       message.error(error.message);
     }
@@ -1184,6 +1225,9 @@ export default function App() {
                         />
                         <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
                           {t("Apply")}
+                        </Button>
+                        <Button icon={<DownloadOutlined />} onClick={downloadEvidence}>
+                          {t("Export Evidence")}
                         </Button>
                         <Button onClick={resetLogFilters}>{t("Reset")}</Button>
                       </Space>

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import express from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -94,6 +95,33 @@ function addTimeRangeFilter({ clauses, params, field, from, to }) {
 
 function buildWhereClause(clauses) {
   return clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) {
+    return value.map(canonicalJson);
+  }
+  if (value && typeof value === "object" && value.constructor === Object) {
+    return Object.keys(value)
+      .sort()
+      .reduce((result, key) => {
+        result[key] = canonicalJson(value[key]);
+        return result;
+      }, {});
+  }
+  return value;
+}
+
+function sha256Json(value) {
+  return createHash("sha256").update(JSON.stringify(canonicalJson(value))).digest("hex");
+}
+
+function countBy(items, field) {
+  return items.reduce((counts, item) => {
+    const value = item[field] ?? "unknown";
+    counts[value] = (counts[value] || 0) + 1;
+    return counts;
+  }, {});
 }
 
 function parsePolicyListFilters(queryParams) {
@@ -243,6 +271,162 @@ export function createApp({
   async function listActiveTools() {
     const result = await query("SELECT * FROM tools WHERE status = 'active' ORDER BY created_at DESC");
     return result.rows;
+  }
+
+  async function listEvidenceInvocations(filters) {
+    const clauses = [];
+    const params = [];
+    if (filters.invocation_agent_id) {
+      params.push(filters.invocation_agent_id);
+      clauses.push(`i.agent_id = $${params.length}`);
+    }
+    if (filters.invocation_tool_id) {
+      params.push(filters.invocation_tool_id);
+      clauses.push(`i.tool_id = $${params.length}`);
+    }
+    if (filters.invocation_status) {
+      params.push(filters.invocation_status);
+      clauses.push(`i.status = $${params.length}`);
+    }
+    addTimeRangeFilter({ clauses, params, field: "i.created_at", from: filters.from, to: filters.to });
+    params.push(filters.limit);
+    const result = await query(
+      `SELECT i.*, a.name AS agent_name, t.name AS tool_name
+       FROM invocations i
+       JOIN agents a ON a.id = i.agent_id
+       JOIN tools t ON t.id = i.tool_id
+       ${buildWhereClause(clauses)}
+       ORDER BY i.created_at DESC
+       LIMIT $${params.length}`,
+      params,
+    );
+    return result.rows;
+  }
+
+  async function listEvidenceApprovals(filters) {
+    const clauses = [];
+    const params = [];
+    if (filters.approval_status) {
+      params.push(filters.approval_status);
+      clauses.push(`status = $${params.length}`);
+    }
+    addTimeRangeFilter({ clauses, params, field: "created_at", from: filters.from, to: filters.to });
+    params.push(filters.limit);
+    const result = await query(
+      `SELECT * FROM approvals
+       ${buildWhereClause(clauses)}
+       ORDER BY created_at DESC
+       LIMIT $${params.length}`,
+      params,
+    );
+    return result.rows.map(publicApproval);
+  }
+
+  async function listEvidenceAuditLogs(filters) {
+    const clauses = [];
+    const params = [];
+    for (const [paramName, field] of [
+      ["audit_event_type", "event_type"],
+      ["audit_actor_type", "actor_type"],
+      ["audit_resource_type", "resource_type"],
+    ]) {
+      if (filters[paramName]) {
+        params.push(filters[paramName]);
+        clauses.push(`${field} = $${params.length}`);
+      }
+    }
+    addTimeRangeFilter({ clauses, params, field: "created_at", from: filters.from, to: filters.to });
+    params.push(filters.limit);
+    const result = await query(
+      `SELECT * FROM audit_logs
+       ${buildWhereClause(clauses)}
+       ORDER BY created_at DESC
+       LIMIT $${params.length}`,
+      params,
+    );
+    return result.rows;
+  }
+
+  async function listEvidencePolicies(filters) {
+    const { clauses, params } = parsePolicyListFilters({
+      action: filters.policy_action,
+      enabled: filters.policy_enabled,
+    });
+    const result = await query(
+      `SELECT * FROM policies ${buildWhereClause(clauses)} ORDER BY priority ASC, created_at DESC`,
+      params,
+    );
+    return result.rows.map(publicPolicy);
+  }
+
+  async function buildEvidenceExport(queryParams) {
+    const filters = {
+      limit: parseListLimit(queryParams.limit),
+      from: queryParams.from || "",
+      to: queryParams.to || "",
+      invocation_agent_id: queryParams.invocation_agent_id || "",
+      invocation_tool_id: queryParams.invocation_tool_id || "",
+      invocation_status: queryParams.invocation_status || "",
+      approval_status: queryParams.approval_status || "",
+      audit_event_type: queryParams.audit_event_type || "",
+      audit_actor_type: queryParams.audit_actor_type || "",
+      audit_resource_type: queryParams.audit_resource_type || "",
+      policy_action: queryParams.policy_action || "",
+      policy_enabled: queryParams.policy_enabled || "",
+    };
+
+    const [health, invocations, approvals, auditLogs, policies] = await Promise.all([
+      query("SELECT 1").then(() => ({ status: "ok" })),
+      listEvidenceInvocations(filters),
+      listEvidenceApprovals(filters),
+      listEvidenceAuditLogs(filters),
+      listEvidencePolicies(filters),
+    ]);
+
+    const datasets = { invocations, approvals, audit_logs: auditLogs, policies };
+    const hashes = Object.fromEntries(
+      Object.entries(datasets).map(([name, rows]) => [`${name}_sha256`, sha256Json(rows)]),
+    );
+    const manifest = {
+      generated_at: new Date().toISOString(),
+      format: "atg.evidence.export.v1",
+      filters: {
+        ...filters,
+        from: filters.from ? new Date(filters.from).toISOString() : null,
+        to: filters.to ? new Date(filters.to).toISOString() : null,
+        invocation_agent_id: filters.invocation_agent_id || null,
+        invocation_tool_id: filters.invocation_tool_id || null,
+        invocation_status: filters.invocation_status || null,
+        approval_status: filters.approval_status || null,
+        audit_event_type: filters.audit_event_type || null,
+        audit_actor_type: filters.audit_actor_type || null,
+        audit_resource_type: filters.audit_resource_type || null,
+        policy_action: filters.policy_action || null,
+        policy_enabled: filters.policy_enabled || null,
+      },
+      counts: {
+        invocations: invocations.length,
+        approvals: approvals.length,
+        audit_logs: auditLogs.length,
+        policies: policies.length,
+      },
+      summaries: {
+        invocation_statuses: countBy(invocations, "status"),
+        approval_statuses: countBy(approvals, "status"),
+        audit_event_types: countBy(auditLogs, "event_type"),
+        policy_actions: countBy(policies, "action"),
+      },
+      dataset_hashes: hashes,
+      health,
+    };
+
+    return {
+      manifest: {
+        ...manifest,
+        manifest_sha256: sha256Json(manifest),
+      },
+      datasets,
+    };
   }
 
   function toolWithSecretHeaders(tool) {
@@ -1074,6 +1258,15 @@ export function createApp({
       const result = await query("SELECT * FROM audit_logs WHERE id = $1", [req.params.id]);
       if (!result.rowCount) throw notFound("Audit log");
       res.json({ audit_log: result.rows[0] });
+    }),
+  );
+
+  app.get(
+    "/api/v1/evidence/export",
+    requireAdmin,
+    asyncHandler(async (req, res) => {
+      const evidence = await buildEvidenceExport(req.query);
+      res.json({ evidence });
     }),
   );
 

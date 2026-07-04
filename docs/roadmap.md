@@ -36,9 +36,9 @@ Not included in v0.1.0:
 
 ATG uses semantic versioning, but the project is still before public-core GA.
 
-- `v0.2.0` through `v0.6.0` are pre-GA milestone releases. Each one should move one product area forward while keeping the core API understandable for early adopters.
+- `v0.2.0` through `v0.5.0` are pre-GA milestone releases. Each one should move one product area forward while keeping the core API understandable for early adopters.
 - Patch releases, such as `v0.1.1` or `v0.2.1`, may be published when needed for install fixes, documentation fixes, demo reliability, small bug fixes, and compatibility improvements. They are not roadmap milestones.
-- `v1.0.0` is the Public Core GA target, currently targeted after `v0.6.0` once the core governance loop, persistence behavior, evidence export, and single-server deployment story are stable enough to support normal production evaluation.
+- `v1.0.0` is the Public Core GA target, currently targeted after `v0.5.0` once the core governance loop, persistence behavior, evidence export, and single-server deployment story are stable enough to support normal production evaluation.
 - Protocol and runtime exploration, such as A2A gatewaying or Go/Rust data-plane work, should not block `v1.0.0`. Those items belong in post-1.0 exploration unless user feedback shows a clear public-core need earlier.
 
 ## Edition Boundary
@@ -54,6 +54,7 @@ Public core direction:
 - REST, MCP, Dify, Python SDK, TypeScript SDK, and OpenAPI examples.
 - Low-friction built-in policy engine.
 - Core reliability improvements that keep the MVP safe and usable.
+- No temporary identity layer before a coherent account and organization model is designed.
 
 Commercial or enterprise direction:
 
@@ -96,16 +97,7 @@ Focus:
 - Migration safety improvements for single-server deployments.
 - Cleaner service-layer separation inside the server where it reduces operational risk.
 
-## v0.4.0 Lightweight Team Controls
-
-Focus:
-
-- Lightweight users and teams.
-- Basic roles such as Admin, Developer, and Approver.
-- Web Console flows for assigning responsibility without introducing full enterprise IAM.
-- Keep SSO/OIDC, ABAC, and multi-tenant organization controls in the commercial/enterprise track.
-
-## v0.5.0 Evidence Export
+## v0.4.0 Evidence Export
 
 Focus:
 
@@ -114,7 +106,7 @@ Focus:
 - Tamper-evident audit groundwork, such as canonical event payloads and optional hash chaining.
 - Keep long-term retention, compliance reporting, and externally anchored evidence in the commercial/enterprise track.
 
-## v0.6.0 Deployment Hardening
+## v0.5.0 Deployment Hardening
 
 Focus:
 

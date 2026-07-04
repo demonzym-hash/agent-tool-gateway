@@ -539,6 +539,64 @@ paths:
                 properties:
                   audit_log:
                     $ref: "#/components/schemas/AuditLog"
+  /api/v1/evidence/export:
+    get:
+      tags: [Evidence]
+      summary: Export an evidence package for review
+      description: >
+        Returns a JSON package containing filtered invocations, approvals,
+        audit logs, policy snapshots, aggregate counts, and SHA-256 dataset hashes.
+      parameters:
+        - name: invocation_agent_id
+          in: query
+          schema: { type: string }
+        - name: invocation_tool_id
+          in: query
+          schema: { type: string }
+        - name: invocation_status
+          in: query
+          schema: { type: string }
+        - name: approval_status
+          in: query
+          schema: { type: string }
+        - name: audit_event_type
+          in: query
+          schema: { type: string }
+        - name: audit_actor_type
+          in: query
+          schema: { type: string }
+        - name: audit_resource_type
+          in: query
+          schema: { type: string }
+        - name: policy_action
+          in: query
+          schema:
+            type: string
+            enum: [allow, deny, approve, redact]
+        - name: policy_enabled
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        "200":
+          description: Evidence package
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  evidence:
+                    $ref: "#/components/schemas/EvidenceExport"
   /mcp:
     post:
       tags: [MCP]
@@ -868,6 +926,43 @@ components:
         resource_id: { type: string }
         detail_json: {}
         created_at: { type: string, format: date-time }
+    EvidenceExport:
+      type: object
+      properties:
+        manifest:
+          type: object
+          additionalProperties: true
+          properties:
+            generated_at: { type: string, format: date-time }
+            format:
+              type: string
+              const: atg.evidence.export.v1
+            counts:
+              type: object
+              additionalProperties: { type: integer }
+            dataset_hashes:
+              type: object
+              additionalProperties: { type: string }
+            manifest_sha256: { type: string }
+        datasets:
+          type: object
+          properties:
+            invocations:
+              type: array
+              items:
+                $ref: "#/components/schemas/Invocation"
+            approvals:
+              type: array
+              items:
+                $ref: "#/components/schemas/Approval"
+            audit_logs:
+              type: array
+              items:
+                $ref: "#/components/schemas/AuditLog"
+            policies:
+              type: array
+              items:
+                $ref: "#/components/schemas/Policy"
     JsonRpcRequest:
       type: object
       required: [jsonrpc, method]
