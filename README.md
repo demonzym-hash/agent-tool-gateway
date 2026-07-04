@@ -88,6 +88,19 @@ WEB_PORT=80 docker compose up --build
 
 The Web Console uses the same `ADMIN_TOKEN` through the `x-admin-token` header.
 
+## Deployment Check
+
+After deploying ATG to a server, run the deployment check from your workstation:
+
+```bash
+ATG_BASE_URL=http://<server>:8080 \
+MOCK_TOOL_ENDPOINT=http://<mock-api>/mock/refund_order \
+ADMIN_TOKEN=<admin-token> \
+npm run deployment:check
+```
+
+The check verifies health, the admin token gate, Agent/Tool/Policy creation, the approval execution path, persisted Invocation/Approval/Audit detail reads, and the Evidence Export package hashes.
+
 ## Local Development
 
 Copy the environment file and install dependencies:
@@ -150,6 +163,7 @@ After the seed completes, open the Web Console and review Agents, Tools, Policie
 npm run check
 npm --prefix server test
 npm run build
+npm run deployment:check:local
 npm run smoke:local
 npm run demo:local
 npm run policy-preview:local
