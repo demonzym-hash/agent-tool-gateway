@@ -4,6 +4,13 @@ export type JsonObject = { [key: string]: JsonValue };
 export type PolicyAction = "allow" | "deny" | "approve" | "redact";
 export type ToolMethod = "GET" | "POST";
 export type ToolRiskLevel = "low" | "medium" | "high";
+export type AgentStatus = "active" | "disabled";
+export type ToolStatus = "active" | "disabled";
+export type ApprovalStatus = "pending" | "processing" | "approved" | "rejected";
+export type InvocationStatus = "pending_approval" | "success" | "failed" | "denied";
+export type InvocationResultStatus = "success" | "denied" | "failed";
+export type ToolTestStatus = "success" | "failed";
+export type ApprovalExecutionStatus = "success" | "failed";
 
 export interface AtgClientOptions {
   baseUrl?: string;
@@ -26,7 +33,7 @@ export interface Agent extends AtgEntity {
   description: string;
   source_type: string;
   owner: string;
-  status: string;
+  status: AgentStatus;
 }
 
 export interface Tool extends AtgEntity {
@@ -40,6 +47,7 @@ export interface Tool extends AtgEntity {
   timeout_ms: number;
   input_schema: JsonObject;
   output_schema: JsonObject;
+  status: ToolStatus;
   owner: string;
 }
 
@@ -56,7 +64,7 @@ export interface Policy extends AtgEntity {
 export interface Approval extends AtgEntity {
   invocation_id: string;
   approver: string;
-  status: string;
+  status: ApprovalStatus;
   reason: string;
   comment: string;
 }
@@ -66,7 +74,7 @@ export interface Invocation extends AtgEntity {
   agent_name?: string;
   tool_id: string;
   tool_name?: string;
-  status: string;
+  status: InvocationStatus;
   request_args: JsonObject;
   response_data_redacted: JsonValue;
   policy_decision: JsonObject;
@@ -126,10 +134,37 @@ export interface PolicyDecision {
 
 export interface McpTool {
   name: string;
+  title?: string;
   description?: string;
   inputSchema?: JsonObject;
+  outputSchema?: JsonObject;
+  annotations?: JsonObject;
+  _meta?: JsonObject;
   [key: string]: JsonValue | undefined;
 }
+
+export interface InvocationResult {
+  status: InvocationResultStatus;
+  invocation_id: string;
+  audit_id: string;
+  data?: JsonValue;
+  reason?: string;
+}
+
+export interface PendingApprovalResult {
+  status: "pending_approval";
+  invocation_id: string;
+  approval_id: string;
+  audit_id: string;
+  reason?: string;
+}
+
+export interface SuccessfulInvocationResult extends InvocationResult {
+  status: "success";
+  data: JsonValue;
+}
+
+export type InvokeResult = SuccessfulInvocationResult | PendingApprovalResult;
 
 export interface CreateAgentInput {
   name: string;
@@ -180,7 +215,7 @@ export interface ApprovalDecisionInput {
 }
 
 export interface ListApprovalsInput {
-  status?: string;
+  status?: ApprovalStatus | string;
   from?: string;
   to?: string;
   limit?: number | null;
@@ -189,7 +224,7 @@ export interface ListApprovalsInput {
 export interface ListInvocationsInput {
   agentId?: string;
   toolId?: string;
-  status?: string;
+  status?: InvocationStatus | string;
   from?: string;
   to?: string;
   limit?: number | null;
@@ -207,8 +242,8 @@ export interface ListAuditLogsInput {
 export interface ExportEvidenceInput {
   invocationAgentId?: string;
   invocationToolId?: string;
-  invocationStatus?: string;
-  approvalStatus?: string;
+  invocationStatus?: InvocationStatus | string;
+  approvalStatus?: ApprovalStatus | string;
   auditEventType?: string;
   auditActorType?: string;
   auditResourceType?: string;
@@ -224,8 +259,9 @@ export interface EvidenceExportManifest {
   format: "atg.evidence.export.v1";
   filters: Record<string, JsonValue>;
   counts: Record<string, number>;
-  summaries?: Record<string, JsonObject>;
+  summaries: Record<string, Record<string, number>>;
   dataset_hashes: Record<string, string>;
+  health: { status: "ok" };
   manifest_sha256: string;
   [key: string]: JsonValue | JsonObject | Record<string, number> | Record<string, string> | undefined;
 }
@@ -254,7 +290,7 @@ export class AtgClient {
 
   constructor(options?: AtgClientOptions);
 
-  invoke(toolName: string, args?: JsonObject): Promise<Record<string, unknown>>;
+  invoke(toolName: string, args?: JsonObject): Promise<InvokeResult>;
   mcpInitialize(): Promise<Record<string, unknown>>;
   mcpListTools(): Promise<McpTool[]>;
   mcpCallTool(toolName: string, args?: JsonObject): Promise<Record<string, unknown>>;
@@ -268,7 +304,7 @@ export class AtgClient {
   createTool(input: CreateToolInput): Promise<{ tool: Tool }>;
   listTools(): Promise<{ tools: Tool[] }>;
   getTool(toolId: string): Promise<{ tool: Tool }>;
-  testTool(toolId: string, args?: JsonObject): Promise<{ status: string; http_status: number; data: JsonValue }>;
+  testTool(toolId: string, args?: JsonObject): Promise<{ status: ToolTestStatus; http_status: number; data: JsonValue }>;
   disableTool(toolId: string): Promise<{ tool: Tool }>;
 
   evaluatePolicy(input: EvaluatePolicyInput): Promise<{ decision: PolicyDecision; agent: Agent; tool: Tool }>;
@@ -280,7 +316,7 @@ export class AtgClient {
   approveApproval(
     approvalId: string,
     input?: ApprovalDecisionInput,
-  ): Promise<{ status: string; approval: Approval; invocation_id: string; audit_id: string; data?: JsonValue }>;
+  ): Promise<{ status: "success"; approval: Approval; invocation_id: string; audit_id: string; data?: JsonValue }>;
   rejectApproval(
     approvalId: string,
     input?: ApprovalDecisionInput,

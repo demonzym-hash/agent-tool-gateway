@@ -93,7 +93,7 @@ ADMIN_TOKEN=<admin-token> \
 npm run evidence:local -- --limit 100
 ```
 
-The export includes invocations, approvals, audit logs, policy snapshots, counts, and dataset hashes. Tool responses in invocation evidence are already redacted by ATG before export.
+The export includes invocations, approvals, audit logs, policy snapshots, applied filters, counts, aggregate summaries, dataset hashes, a health marker, and a manifest hash. Tool responses in invocation evidence are already redacted by ATG before export.
 
 ## Operator Responsibilities
 

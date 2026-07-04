@@ -55,7 +55,7 @@ npm run dev:local
 npm run seed:demo:local
 ```
 
-服务器 Docker 环境：
+服务器 / Docker 环境：
 
 ```bash
 ATG_BASE_URL=http://<server>:8080 \
@@ -72,9 +72,25 @@ Demo 会自动创建 Agent、三个 Tool 和三条策略，并验证：
 
 跑完后打开 Web Console，查看 Agents、Tools、Policies、Approvals、Invocations 和 Audit Logs。
 
+## 接入方式
+
+- REST invoke: `POST /api/v1/invoke/{tool_name}`，使用 Agent API Key。
+- MCP: `POST /mcp` 支持 `initialize`、`tools/list` 和 `tools/call`。
+- Dify: 配置 HTTP Tool 调用 ATG，而不是直接调用业务 API。
+- Python SDK: 查看 `sdk/python`。
+- TypeScript SDK: 查看 `sdk/typescript`。
+
+REST invoke 的主要响应：
+
+- `200`: Tool 执行成功。
+- `202`: 调用等待审批。
+- `403`: 调用被策略拒绝。
+- `502`: 上游 Tool 执行失败。
+
 ## 更多
 
 - 英文 README: [README.md](../README.md)
+- 部署指南: [deployment.md](./deployment.md)
 - 版本规划: [roadmap.md](./roadmap.md)
 
 ## 许可证
@@ -83,4 +99,4 @@ ATG 采用双授权模式：
 
 - 核心公开版使用 GNU Affero General Public License v3.0 only (`AGPL-3.0-only`)。
 - Python SDK、TypeScript SDK 和 examples 使用 MIT 许可证，方便集成和示例复用。
-- 如果需要闭源嵌入、闭源修改版 SaaS / 托管服务、OEM 分发、企业功能、私有化部署或商业支持，请查看 [COMMERCIAL.md](../COMMERCIAL.md)。
+- 如需闭源嵌入、闭源修改版 SaaS / 托管服务、OEM 分发、企业功能、私有化部署或商业支持，请查看 [COMMERCIAL.md](../COMMERCIAL.md)。

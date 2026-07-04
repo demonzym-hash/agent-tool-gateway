@@ -9,16 +9,28 @@ TypeScript declarations are included at `src/index.d.ts` and checked by `npm run
 ## Invoke A Tool
 
 ```js
-import { AtgClient } from "@atg/sdk";
+import { AtgClient, AtgError } from "@atg/sdk";
 
 const client = new AtgClient({ baseUrl: "http://localhost:8080", apiKey: "atg_..." });
-const result = await client.invoke("refund_order", {
-  order_id: "ord_ts_sdk",
-  amount: 25,
-  reason: "typescript_sdk_demo",
-});
-console.log(result);
+try {
+  const result = await client.invoke("refund_order", {
+    order_id: "ord_ts_sdk",
+    amount: 25,
+    reason: "typescript_sdk_demo",
+  });
+  if (result.status === "pending_approval") {
+    console.log("Waiting for approval:", result.approval_id);
+  } else {
+    console.log(result.data);
+  }
+} catch (error) {
+  if (error instanceof AtgError) {
+    console.log(error.statusCode, error.payload);
+  }
+}
 ```
+
+`invoke()` resolves with `success` or `pending_approval` for 2xx responses. Policy denials and upstream Tool failures are non-2xx responses and throw `AtgError`; the original ATG response body is available in `error.payload`.
 
 ## Admin Registry
 
@@ -106,6 +118,8 @@ const rejected = await adminClient.rejectApproval("approval_id", {
 console.log(rejected.approval.status);
 ```
 
+`approveApproval()` resolves with `success` when the approved Tool execution succeeds. If the upstream Tool execution fails, it throws `AtgError` with the ATG failure payload.
+
 ## Evidence Review
 
 ```js
@@ -140,6 +154,8 @@ const evidence = await adminClient.exportEvidence({
 });
 console.log(evidence.evidence.manifest);
 ```
+
+The evidence manifest includes the applied `filters`, dataset `counts`, aggregate `summaries`, per-dataset `dataset_hashes`, `health`, and `manifest_sha256`.
 
 ## Example
 

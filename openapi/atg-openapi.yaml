@@ -19,6 +19,7 @@ tags:
   - name: Invocations
   - name: Approvals
   - name: Audit Logs
+  - name: Evidence
   - name: MCP
 paths:
   /healthz:
@@ -333,7 +334,7 @@ paths:
               additionalProperties: true
       responses:
         "200":
-          description: Tool executed or denied
+          description: Tool executed successfully
           content:
             application/json:
               schema:
@@ -344,6 +345,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PendingApprovalResult"
+        "403":
+          description: Tool invocation was denied by policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvocationResult"
+        "502":
+          description: Tool invocation failed while calling the upstream Tool
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvocationResult"
   /api/v1/invocations:
     get:
       tags: [Invocations]
@@ -455,6 +468,12 @@ paths:
       responses:
         "200":
           description: Approval execution result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalExecutionResult"
+        "502":
+          description: Approval was accepted, but the upstream Tool execution failed
           content:
             application/json:
               schema:
@@ -653,7 +672,9 @@ components:
         description: { type: string }
         source_type: { type: string }
         owner: { type: string }
-        status: { type: string }
+        status:
+          type: string
+          enum: [active, disabled]
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
     ToolCreate:
@@ -693,7 +714,9 @@ components:
         - type: object
           properties:
             id: { type: string }
-            status: { type: string }
+            status:
+              type: string
+              enum: [active, disabled]
             created_at: { type: string, format: date-time }
             updated_at: { type: string, format: date-time }
     ToolTestResult:
@@ -856,7 +879,6 @@ components:
         audit_id: { type: string }
         data: {}
         reason: { type: string }
-        matched_policy: {}
     PendingApprovalResult:
       type: object
       properties:
@@ -867,7 +889,6 @@ components:
         approval_id: { type: string }
         audit_id: { type: string }
         reason: { type: string }
-        matched_policy: {}
     Invocation:
       type: object
       additionalProperties: true
@@ -877,14 +898,16 @@ components:
         tool_id: { type: string }
         agent_name: { type: string }
         tool_name: { type: string }
-        status: { type: string }
+        status:
+          type: string
+          enum: [pending_approval, success, failed, denied]
         request_args: {}
         response_data_redacted: {}
         policy_decision: {}
-        matched_policy_id: { type: string }
-        approval_id: { type: string }
+        matched_policy_id: { type: [string, "null"] }
+        approval_id: { type: [string, "null"] }
         latency_ms: { type: integer }
-        error_message: { type: string }
+        error_message: { type: [string, "null"] }
         created_at: { type: string, format: date-time }
     ApprovalDecision:
       type: object
@@ -900,7 +923,9 @@ components:
         id: { type: string }
         invocation_id: { type: string }
         approver: { type: string }
-        status: { type: string }
+        status:
+          type: string
+          enum: [pending, processing, approved, rejected]
         reason: { type: string }
         comment: { type: string }
         created_at: { type: string, format: date-time }
@@ -908,7 +933,9 @@ components:
     ApprovalExecutionResult:
       type: object
       properties:
-        status: { type: string }
+        status:
+          type: string
+          enum: [success, failed]
         approval:
           $ref: "#/components/schemas/Approval"
         invocation_id: { type: string }
@@ -937,12 +964,26 @@ components:
             format:
               type: string
               const: atg.evidence.export.v1
+            filters:
+              type: object
+              additionalProperties: true
             counts:
               type: object
               additionalProperties: { type: integer }
+            summaries:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties: { type: integer }
             dataset_hashes:
               type: object
               additionalProperties: { type: string }
+            health:
+              type: object
+              properties:
+                status:
+                  type: string
+                  const: ok
             manifest_sha256: { type: string }
         datasets:
           type: object

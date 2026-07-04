@@ -189,6 +189,10 @@ npm run typescript-sdk:local
 ## Integrations
 
 - REST invoke: `POST /api/v1/invoke/{tool_name}` with an Agent API key.
+  - `200`: Tool executed successfully.
+  - `202`: Tool call is pending approval.
+  - `403`: Tool call was denied by policy.
+  - `502`: Upstream Tool execution failed.
 - MCP: `POST /mcp` supports `initialize`, `tools/list`, and `tools/call`.
 - Dify: configure an HTTP Tool to call ATG instead of the business API directly.
 - Python: use `sdk/python` for REST, MCP, admin helpers, and LangChain wrapping.

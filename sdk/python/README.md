@@ -20,16 +20,24 @@ python -m pip install -e ".[langchain]"
 ## Invoke A Tool
 
 ```python
-from atg_sdk import AtgClient
+from atg_sdk import AtgClient, AtgError
 
 client = AtgClient(base_url="http://localhost:8080", api_key="atg_...")
-result = client.invoke("refund_order", {
-    "order_id": "ord_sdk",
-    "amount": 25,
-    "reason": "python_sdk_demo",
-})
-print(result)
+try:
+    result = client.invoke("refund_order", {
+        "order_id": "ord_sdk",
+        "amount": 25,
+        "reason": "python_sdk_demo",
+    })
+    if result["status"] == "pending_approval":
+        print("Waiting for approval:", result["approval_id"])
+    else:
+        print(result["data"])
+except AtgError as error:
+    print(error.status_code, error.payload)
 ```
+
+`invoke()` returns `success` or `pending_approval` for 2xx responses. Policy denials and upstream Tool failures are non-2xx responses and raise `AtgError`; the original ATG response body is available in `error.payload`.
 
 ## Admin Registry
 
@@ -119,6 +127,8 @@ rejected = admin_client.reject_approval(
 print(rejected["approval"]["status"])
 ```
 
+`approve_approval()` returns `success` when the approved Tool execution succeeds. If the upstream Tool execution fails, the SDK raises `AtgError` with the ATG failure payload.
+
 ## Evidence Review
 
 ```python
@@ -153,6 +163,8 @@ evidence = admin_client.export_evidence(
 )
 print(evidence["evidence"]["manifest"])
 ```
+
+The evidence manifest includes the applied `filters`, dataset `counts`, aggregate `summaries`, per-dataset `dataset_hashes`, `health`, and `manifest_sha256`.
 
 ## Example
 

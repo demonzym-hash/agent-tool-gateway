@@ -63,4 +63,6 @@ curl -s http://localhost:8080/api/v1/invoke/refund_order \
   -d '{"order_id":"ord_dify","amount":25,"reason":"dify_http_tool"}'
 ```
 
-If an approval policy matches, Dify receives `pending_approval` and the target API is not called until an approver approves it in ATG.
+If an approval policy matches, Dify receives `pending_approval` with an `approval_id`, and the target API is not called until an approver approves it in ATG.
+
+If a deny policy matches, ATG returns HTTP `403` with `status: "denied"`. If the upstream Tool call fails, ATG returns HTTP `502` with `status: "failed"`.
