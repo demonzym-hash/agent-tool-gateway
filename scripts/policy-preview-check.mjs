@@ -116,6 +116,9 @@ const evaluated = await request("/api/v1/policies/evaluate", {
 });
 assert(evaluated.decision?.action === "approve", `Preview decision was ${evaluated.decision?.action}, expected approve`);
 assert(evaluated.decision?.matched_policy_id === policyResponse.policy.id, "Preview did not return the matching policy");
+assert(Array.isArray(evaluated.decision?.matched_policies), "Preview did not include matched policy details");
+assert(Array.isArray(evaluated.decision?.explanation), "Preview did not include policy explanation");
+assert(evaluated.decision?.evaluation?.mode === "composed", "Preview did not include composed evaluation metadata");
 assert(evaluated.agent?.id === agentResponse.agent.id, "Preview response returned the wrong agent");
 assert(evaluated.tool?.id === toolResponse.tool.id, "Preview response returned the wrong tool");
 console.log("[ok] policy preview returned approve decision");

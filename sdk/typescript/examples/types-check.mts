@@ -23,6 +23,8 @@ const preview = await adminClient.evaluatePolicy({
   input: { amount: 150 },
 });
 const decisionAction: PolicyAction = preview.decision.action;
+const decisionExplanation: string[] = preview.decision.explanation || [];
+console.log(decisionExplanation.length);
 
 await adminClient.listPolicies({ action: decisionAction, enabled: true });
 await adminClient.getPolicy(policy.policy.id);

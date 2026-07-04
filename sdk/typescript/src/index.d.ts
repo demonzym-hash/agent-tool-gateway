@@ -85,13 +85,43 @@ export interface AuditLog extends AtgEntity {
   detail_json: JsonObject;
 }
 
+export interface PolicyDecisionRef {
+  id: string;
+  name: string;
+  action: PolicyAction;
+  priority?: number;
+  matched?: boolean;
+  reason?: string;
+}
+
+export interface PolicyConditionCheck {
+  key: string;
+  label: string;
+  matched: boolean;
+  operator: string;
+}
+
+export interface PolicyEvaluationEntry extends PolicyDecisionRef {
+  checks?: PolicyConditionCheck[];
+}
+
+export interface PolicyEvaluationSummary {
+  mode: string;
+  precedence: PolicyAction[];
+  evaluated_policies: PolicyEvaluationEntry[];
+}
+
 export interface PolicyDecision {
   action: PolicyAction;
   reason?: string;
   matched_policy_id: string | null;
   matched_policy_name?: string | null;
+  matched_policies?: PolicyDecisionRef[];
+  redaction_policy_ids?: string[];
   redaction?: JsonObject;
-  [key: string]: JsonValue | undefined;
+  explanation?: string[];
+  evaluation?: PolicyEvaluationSummary;
+  [key: string]: unknown;
 }
 
 export interface McpTool {

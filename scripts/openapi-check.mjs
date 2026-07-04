@@ -30,6 +30,9 @@ const requiredFragments = [
   "Simple path placeholders",
   "PolicyEvaluateRequest:",
   "PolicyEvaluateResult:",
+  "PolicyDecision:",
+  "matched_policies:",
+  "redaction_policy_ids:",
 ];
 
 for (const fragment of requiredFragments) {

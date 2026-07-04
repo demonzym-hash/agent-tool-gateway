@@ -693,35 +693,102 @@ components:
         enabled:
           type: boolean
           default: true
-      Policy:
-        allOf:
-          - $ref: "#/components/schemas/PolicyCreate"
-          - type: object
-            properties:
-              id: { type: string }
-              created_at: { type: string, format: date-time }
-              updated_at: { type: string, format: date-time }
-      PolicyEvaluateRequest:
-        type: object
-        required: [agent_id]
-        properties:
-          agent_id: { type: string }
-          tool_id: { type: string }
-          tool_name: { type: string }
-          input:
-            type: object
-            additionalProperties: true
-      PolicyEvaluateResult:
-        type: object
-        properties:
-          decision:
-            type: object
-            additionalProperties: true
-          agent:
-            $ref: "#/components/schemas/Agent"
-          tool:
-            $ref: "#/components/schemas/Tool"
-      InvocationResult:
+    Policy:
+      allOf:
+        - $ref: "#/components/schemas/PolicyCreate"
+        - type: object
+          properties:
+            id: { type: string }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+    PolicyEvaluateRequest:
+      type: object
+      required: [agent_id]
+      properties:
+        agent_id: { type: string }
+        tool_id: { type: string }
+        tool_name: { type: string }
+        input:
+          type: object
+          additionalProperties: true
+    PolicyEvaluateResult:
+      type: object
+      properties:
+        decision:
+          $ref: "#/components/schemas/PolicyDecision"
+        agent:
+          $ref: "#/components/schemas/Agent"
+        tool:
+          $ref: "#/components/schemas/Tool"
+    PolicyDecision:
+      type: object
+      additionalProperties: true
+      properties:
+        action:
+          type: string
+          enum: [allow, deny, approve, redact]
+        reason:
+          type: string
+        matched_policy_id:
+          type: [string, "null"]
+        matched_policy_name:
+          type: [string, "null"]
+        matched_policies:
+          type: array
+          items:
+            $ref: "#/components/schemas/PolicyDecisionRef"
+        redaction_policy_ids:
+          type: array
+          items:
+            type: string
+        redaction:
+          type: object
+          additionalProperties: true
+        explanation:
+          type: array
+          items:
+            type: string
+        evaluation:
+          type: object
+          additionalProperties: true
+          properties:
+            mode:
+              type: string
+            precedence:
+              type: array
+              items:
+                type: string
+                enum: [deny, approve, allow, redact]
+            evaluated_policies:
+              type: array
+              items:
+                $ref: "#/components/schemas/PolicyEvaluationEntry"
+    PolicyDecisionRef:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        action:
+          type: string
+          enum: [allow, deny, approve, redact]
+        priority: { type: integer }
+        matched: { type: boolean }
+        reason: { type: string }
+    PolicyEvaluationEntry:
+      allOf:
+        - $ref: "#/components/schemas/PolicyDecisionRef"
+        - type: object
+          properties:
+            checks:
+              type: array
+              items:
+                type: object
+                properties:
+                  key: { type: string }
+                  label: { type: string }
+                  matched: { type: boolean }
+                  operator: { type: string }
+    InvocationResult:
       type: object
       properties:
         status:

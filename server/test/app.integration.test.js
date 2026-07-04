@@ -1112,7 +1112,7 @@ describe("ATG API flow", () => {
     });
     assert.equal(denied.response.status, 403);
     assert.equal(denied.data.status, "denied");
-    assert.equal(denied.data.reason, "Matched policy: Deny delete_user");
+    assert.equal(denied.data.reason, "Denied by policy: Deny delete_user");
     assert.equal(targetCallCount, 0);
 
     const invocation = fake.db.invocations.find((item) => item.id === denied.data.invocation_id);
@@ -1122,6 +1122,7 @@ describe("ATG API flow", () => {
     const audit = fake.db.auditLogs.find((item) => item.id === denied.data.audit_id);
     assert.equal(audit.event_type, "tool.invoke.denied");
     assert.equal(audit.detail_json.policy_decision.matched_policy_name, "Deny delete_user");
+    assert.match(audit.detail_json.policy_decision.explanation.join(" "), /Deny policies take precedence/);
 
     const disabledPolicy = await jsonFetch(`${atgBaseUrl}/api/v1/policies/${createdPolicy.data.policy.id}/disable`, {
       method: "POST",
@@ -1195,6 +1196,8 @@ describe("ATG API flow", () => {
     assert.equal(evaluated.response.status, 200);
     assert.equal(evaluated.data.decision.action, "approve");
     assert.equal(evaluated.data.decision.matched_policy_id, createdPolicy.data.policy.id);
+    assert.equal(evaluated.data.decision.evaluation.mode, "composed");
+    assert.equal(evaluated.data.decision.evaluation.evaluated_policies[0].matched, true);
     assert.equal(evaluated.data.agent.id, createdAgent.data.agent.id);
     assert.equal(evaluated.data.tool.id, createdTool.data.tool.id);
     assert.equal(fake.db.invocations.length, invocationCountBefore);
@@ -1342,7 +1345,7 @@ describe("ATG API flow", () => {
     });
     assert.equal(pending.response.status, 202);
     assert.equal(pending.data.status, "pending_approval");
-    assert.equal(pending.data.reason, "Matched policy: Approve large refunds");
+    assert.equal(pending.data.reason, "Approval required by policy: Approve large refunds");
     assert.match(pending.data.approval_id, /^[0-9a-f-]{36}$/);
     assert.equal(targetCallCount, 0);
 
@@ -1416,6 +1419,72 @@ describe("ATG API flow", () => {
 
     const audit = fake.db.auditLogs.find((item) => item.id === approved.data.audit_id);
     assert.equal(audit.event_type, "approval.approved.executed");
+  });
+
+  it("keeps redaction rules when approval and redact policies both match", async () => {
+    const createdAgent = await jsonFetch(`${atgBaseUrl}/api/v1/agents`, {
+      method: "POST",
+      body: JSON.stringify({ name: "approval-redaction-agent", owner: "ops" }),
+    });
+    const createdTool = await jsonFetch(`${atgBaseUrl}/api/v1/tools`, {
+      method: "POST",
+      body: JSON.stringify({
+        name: "approval_redaction_lookup",
+        endpoint: `${mockBaseUrl}/mock/custom_redaction`,
+        method: "POST",
+        risk_level: "high",
+        headers: {},
+      }),
+    });
+    assert.equal(createdTool.response.status, 201);
+
+    const approvePolicy = await jsonFetch(`${atgBaseUrl}/api/v1/policies`, {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Approve sensitive lookup",
+        priority: 1,
+        action: "approve",
+        condition_json: { tool: "approval_redaction_lookup" },
+      }),
+    });
+    const redactPolicy = await jsonFetch(`${atgBaseUrl}/api/v1/policies`, {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Redact approved lookup",
+        priority: 2,
+        action: "redact",
+        condition_json: { tool: "approval_redaction_lookup" },
+        scope: { redaction: { fields: ["account_number"] } },
+      }),
+    });
+
+    const pending = await jsonFetch(`${atgBaseUrl}/api/v1/invoke/approval_redaction_lookup`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${createdAgent.data.api_key}` },
+      body: JSON.stringify({ customer_id: "cus_composed" }),
+    });
+    assert.equal(pending.response.status, 202);
+    assert.equal(pending.data.status, "pending_approval");
+    assert.match(pending.data.reason, /redaction also applies/);
+
+    const pendingInvocation = fake.db.invocations.find((item) => item.id === pending.data.invocation_id);
+    assert.equal(pendingInvocation.matched_policy_id, approvePolicy.data.policy.id);
+    assert.equal(pendingInvocation.policy_decision.action, "approve");
+    assert.deepEqual(pendingInvocation.policy_decision.redaction_policy_ids, [redactPolicy.data.policy.id]);
+    assert.deepEqual(pendingInvocation.policy_decision.redaction, { fields: ["account_number"] });
+
+    const approved = await jsonFetch(`${atgBaseUrl}/api/v1/approvals/${pending.data.approval_id}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ approver: "alice", comment: "approved with redaction" }),
+    });
+    assert.equal(approved.response.status, 200);
+    assert.equal(approved.data.status, "success");
+    assert.equal(approved.data.data.account_number, "***");
+    assert.equal(approved.data.data.support_ticket, "TCK-778899");
+
+    const completedInvocation = fake.db.invocations.find((item) => item.id === pending.data.invocation_id);
+    assert.equal(completedInvocation.status, "success");
+    assert.equal(completedInvocation.response_data_redacted.account_number, "***");
   });
 
   it("rejects pending approvals without executing the target API", async () => {

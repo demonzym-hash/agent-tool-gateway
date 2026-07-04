@@ -4,6 +4,8 @@ ATG is currently at the `v0.1.0` open-source MVP stage.
 
 The MVP goal is simple: prove that Agents can call real HTTP APIs through one independent gateway that applies identity, policy, approval, redaction, credential isolation, and audit logging.
 
+This roadmap is directional and may change based on user feedback, security findings, and project priorities.
+
 ## v0.1.0 MVP
 
 Included:
@@ -29,6 +31,15 @@ Not included in v0.1.0:
 - SIEM/Vault/KMS integrations.
 - Enterprise approval system integrations.
 - Full AgentOps or connector marketplace.
+
+## Versioning Approach
+
+ATG uses semantic versioning, but the project is still before public-core GA.
+
+- `v0.2.0` through `v0.6.0` are pre-GA milestone releases. Each one should move one product area forward while keeping the core API understandable for early adopters.
+- Patch releases, such as `v0.1.1` or `v0.2.1`, may be published when needed for install fixes, documentation fixes, demo reliability, small bug fixes, and compatibility improvements. They are not roadmap milestones.
+- `v1.0.0` is the Public Core GA target, currently targeted after `v0.6.0` once the core governance loop, persistence behavior, evidence export, and single-server deployment story are stable enough to support normal production evaluation.
+- Protocol and runtime exploration, such as A2A gatewaying or Go/Rust data-plane work, should not block `v1.0.0`. Those items belong in post-1.0 exploration unless user feedback shows a clear public-core need earlier.
 
 ## Edition Boundary
 
@@ -65,15 +76,6 @@ Public examples or limited adapters may still be added when they help adoption, 
 - mTLS, SPIFFE/SPIRE, and short-lived delegation tokens.
 - Sandboxed execution for future code, shell, browser, or untrusted plugin Tools.
 - Go/Rust data-plane components for high-throughput proxying or sidecar deployment.
-
-## v0.1.x Stabilization
-
-Focus:
-
-- Fix install, startup, Docker, and documentation issues reported by early users.
-- Keep the public API stable for early PoCs.
-- Improve error messages and release checks.
-- Keep examples and SDKs aligned with the MVP API.
 
 ## v0.2.0 Policy Clarity
 
@@ -121,7 +123,18 @@ Focus:
 - Clear upgrade, backup, restore, and secret-management guidance.
 - Keep production HA, SLA-backed operations, and managed private deployment in the commercial/enterprise track.
 
-## v0.7.0 Protocol And Runtime Exploration
+## v1.0.0 Public Core GA
+
+Focus:
+
+- Declare the public core ready for general availability, not just developer preview.
+- Stabilize the core REST, MCP, OpenAPI, Python SDK, and TypeScript SDK contracts for normal production evaluation.
+- Document the compatibility policy for future `v1.x` releases, including how breaking changes will be handled.
+- Validate the full governance path across Agent identity, Tool invocation, policy decisions, approval, redaction, credential isolation, evidence export, and audit logs.
+- Make upgrade, backup, restore, and secret-management guidance clear enough for single-server public-core deployments.
+- Keep enterprise IAM, multi-tenancy, HA/SLA operations, external KMS/Vault/SIEM, and managed private deployment in the commercial/enterprise track.
+
+## v1.x Labs And Exploration
 
 Focus:
 
@@ -152,4 +165,4 @@ Longer-term work may include:
 - Optional Go/Rust runtime components for the performance-sensitive data plane, while keeping the control plane and Web Console developer-friendly.
 - Enterprise approval workflows.
 - Policy simulation and replay tools.
-- Interoperability guidance for agent governance stacks such as Microsoft Agent Governance Toolkit, with ATG focused on the standalone enterprise API gateway layer.
+- Interoperability guidance for broader agent governance stacks, with ATG focused on the standalone enterprise API gateway layer.

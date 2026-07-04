@@ -1095,9 +1095,22 @@ export default function App() {
           <Descriptions bordered size="small" column={1}>
             <Descriptions.Item label="Decision">{policyPreviewResult?.decision?.action}</Descriptions.Item>
             <Descriptions.Item label="Matched Policy">{policyPreviewResult?.decision?.matched_policy_name || "-"}</Descriptions.Item>
+            <Descriptions.Item label="Reason">{policyPreviewResult?.decision?.reason || "-"}</Descriptions.Item>
+            <Descriptions.Item label="Matched Policies">{policyPreviewResult?.decision?.matched_policies?.length ?? 0}</Descriptions.Item>
+            <Descriptions.Item label="Redaction Policies">{policyPreviewResult?.decision?.redaction_policy_ids?.length ?? 0}</Descriptions.Item>
             <Descriptions.Item label="Agent">{policyPreviewResult?.agent?.name}</Descriptions.Item>
             <Descriptions.Item label="Tool">{policyPreviewResult?.tool?.name}</Descriptions.Item>
           </Descriptions>
+          <div className="detail-json-grid">
+            <div>
+              <Text strong>Explanation</Text>
+              <JsonBlock value={policyPreviewResult?.decision?.explanation} />
+            </div>
+            <div>
+              <Text strong>Matched Policies</Text>
+              <JsonBlock value={policyPreviewResult?.decision?.matched_policies} />
+            </div>
+          </div>
           <JsonBlock value={policyPreviewResult?.decision} />
         </Modal>
 
