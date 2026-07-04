@@ -67,7 +67,7 @@ The fastest demo creates one Agent, three Tools, and three policies:
 
 ## Docker Deployment
 
-Set secrets first, then start the stack:
+Set the required secrets first, then start the stack:
 
 ```bash
 export SECRET_KEY=replace-with-a-long-random-secret-key
@@ -88,6 +88,16 @@ WEB_PORT=80 docker compose up --build
 
 The Web Console uses the same `ADMIN_TOKEN` through the `x-admin-token` header.
 
+For production-like single-server evaluation, read the [Deployment Guide](./docs/deployment.md) before sharing the environment.
+
+Required deployment variables:
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string. Docker Compose sets this for the bundled PostgreSQL service. |
+| `SECRET_KEY` | Encrypts sensitive Tool headers before storage. Use a long random value. |
+| `ADMIN_TOKEN` | Protects management APIs and the Web Console. |
+
 ## Deployment Check
 
 After deploying ATG to a server, run the deployment check from your workstation:
@@ -100,6 +110,8 @@ npm run deployment:check
 ```
 
 The check verifies health, the admin token gate, Agent/Tool/Policy creation, the approval execution path, persisted Invocation/Approval/Audit detail reads, and the Evidence Export package hashes.
+
+The check writes temporary Agent, Tool, Policy, Invocation, Approval, and Audit records to the target environment. Run it against a fresh evaluation database when you do not want test records in a shared environment.
 
 ## Local Development
 
@@ -185,6 +197,7 @@ npm run typescript-sdk:local
 ## More Languages
 
 - [简体中文](./docs/README.zh-CN.md)
+- [Deployment Guide](./docs/deployment.md)
 - [Roadmap](./docs/roadmap.md)
 
 ## MVP Limits

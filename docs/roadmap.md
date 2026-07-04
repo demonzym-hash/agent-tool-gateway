@@ -110,10 +110,11 @@ Focus:
 
 Focus:
 
-- More deployment guidance for production-like single-server setups.
-- Optional basic Helm chart or Kubernetes example for evaluation environments.
-- Clear upgrade, backup, restore, and secret-management guidance.
-- Keep production HA, SLA-backed operations, and managed private deployment in the commercial/enterprise track.
+- Clearer deployment guidance for Docker Compose and production-like single-server evaluation.
+- Environment variable guidance for `DATABASE_URL`, `ADMIN_TOKEN`, `SECRET_KEY`, Web Console ports, and Tool egress controls.
+- Deployment verification flow using the readiness check and evidence export after each server update.
+- Clear separation between ATG application responsibilities and operator-managed infrastructure such as PostgreSQL backup and restore.
+- Keep Kubernetes/Helm, production HA, backup automation, SLA-backed operations, and managed private deployment in the commercial/enterprise track.
 
 ## v1.0.0 Public Core GA
 
@@ -123,7 +124,7 @@ Focus:
 - Stabilize the core REST, MCP, OpenAPI, Python SDK, and TypeScript SDK contracts for normal production evaluation.
 - Document the compatibility policy for future `v1.x` releases, including how breaking changes will be handled.
 - Validate the full governance path across Agent identity, Tool invocation, policy decisions, approval, redaction, credential isolation, evidence export, and audit logs.
-- Make upgrade, backup, restore, and secret-management guidance clear enough for single-server public-core deployments.
+- Make deployment, verification, upgrade, and secret-management guidance clear enough for single-server public-core evaluation.
 - Keep enterprise IAM, multi-tenancy, HA/SLA operations, external KMS/Vault/SIEM, and managed private deployment in the commercial/enterprise track.
 
 ## v1.x Labs And Exploration
