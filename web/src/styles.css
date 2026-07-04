@@ -136,6 +136,57 @@ body {
   margin-top: 16px;
 }
 
+.detail-section {
+  margin-top: 16px;
+}
+
+.detail-tabs {
+  margin-top: -8px;
+}
+
+.detail-tabs .ant-tabs-nav {
+  margin-bottom: 12px;
+}
+
+.decision-trace {
+  display: grid;
+  gap: 0;
+  margin-top: 10px;
+  padding-left: 12px;
+  border-left: 2px solid #d9e4df;
+}
+
+.decision-trace-step {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 6px 0 12px;
+}
+
+.decision-trace-marker {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #e9f7f3;
+  color: #102522;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 0 0 3px #ffffff;
+}
+
+.decision-trace-body {
+  min-width: 0;
+}
+
+.decision-trace-message,
+.decision-trace-meta {
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+
 .ant-card {
   border-radius: 8px;
 }

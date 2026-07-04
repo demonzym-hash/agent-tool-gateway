@@ -70,6 +70,10 @@ const zhText = {
   "pending_approval": "待审批",
   active: "启用",
   disabled: "禁用",
+  allow: "允许",
+  deny: "拒绝",
+  approve: "审批",
+  redact: "脱敏",
   approved: "已批准",
   rejected: "已拒绝",
   "One-time API key": "一次性 API Key",
@@ -168,6 +172,22 @@ const zhText = {
   Request: "请求",
   "Redacted Response": "脱敏响应",
   "Policy Decision": "策略决策",
+  "Decision Trace": "决策跟踪",
+  "No decision trace": "暂无决策跟踪",
+  "Selected Policy": "选中策略",
+  "Action Counts": "动作统计",
+  "Policy IDs": "策略 ID",
+  Overview: "概览",
+  Evidence: "证据",
+  "Raw JSON": "原始 JSON",
+  Payload: "载荷",
+  match: "匹配",
+  precedence: "优先级",
+  redaction: "脱敏",
+  decision: "决策",
+  matched: "已命中",
+  no_match: "未命中",
+  apply: "应用",
   "Audit Log Details": "审计日志详情",
   Language: "语言",
   Chinese: "中文",
@@ -211,6 +231,69 @@ function JsonBlock({ value }) {
 function StatusTag({ status, t = (value) => value }) {
   const color = status === "active" || status === "success" ? "green" : status === "failed" ? "red" : "default";
   return <Tag color={color}>{t(status)}</Tag>;
+}
+
+function traceColor(outcome) {
+  if (outcome === "deny" || outcome === "no_match") return "red";
+  if (outcome === "approve") return "gold";
+  if (outcome === "apply" || outcome === "matched" || outcome === "allow" || outcome === "redact") return "green";
+  return "default";
+}
+
+function formatActionCounts(counts = {}, t = (value) => value) {
+  return ["deny", "approve", "allow", "redact"]
+    .filter((action) => counts[action])
+    .map((action) => `${t(action)}: ${counts[action]}`)
+    .join(", ");
+}
+
+function DecisionTrace({ trace, t }) {
+  if (!Array.isArray(trace) || !trace.length) {
+    return <Text type="secondary">{t("No decision trace")}</Text>;
+  }
+
+  return (
+    <div className="decision-trace">
+      {trace.map((step, index) => (
+        <div className="decision-trace-step" key={`${step.step || "step"}-${index}`}>
+          <div className="decision-trace-marker">{index + 1}</div>
+          <div className="decision-trace-body">
+            <Space wrap size={8}>
+              <Text strong>{t(step.step || "decision")}</Text>
+              {step.outcome ? <Tag color={traceColor(step.outcome)}>{t(step.outcome)}</Tag> : null}
+              {step.matched_policy_count != null ? (
+                <Tag>
+                  {t("Matched Policies")}: {step.matched_policy_count}
+                </Tag>
+              ) : null}
+            </Space>
+            {step.message ? <div className="decision-trace-message">{step.message}</div> : null}
+            {step.selected_policy_name || step.selected_policy_id ? (
+              <div className="decision-trace-meta">
+                <Text type="secondary">
+                  {t("Selected Policy")}: {step.selected_policy_name || step.selected_policy_id}
+                </Text>
+              </div>
+            ) : null}
+            {step.action_counts ? (
+              <div className="decision-trace-meta">
+                <Text type="secondary">
+                  {t("Action Counts")}: {formatActionCounts(step.action_counts, t) || "-"}
+                </Text>
+              </div>
+            ) : null}
+            {Array.isArray(step.policy_ids) && step.policy_ids.length ? (
+              <div className="decision-trace-meta">
+                <Text type="secondary">
+                  {t("Policy IDs")}: {step.policy_ids.join(", ")}
+                </Text>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function App() {
@@ -1260,26 +1343,59 @@ export default function App() {
           footer={null}
           width={760}
         >
-          <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label={t("Decision")}>{policyPreviewResult?.decision?.action}</Descriptions.Item>
-            <Descriptions.Item label={t("Matched Policy")}>{policyPreviewResult?.decision?.matched_policy_name || "-"}</Descriptions.Item>
-            <Descriptions.Item label={t("Reason")}>{policyPreviewResult?.decision?.reason || "-"}</Descriptions.Item>
-            <Descriptions.Item label={t("Matched Policies")}>{policyPreviewResult?.decision?.matched_policies?.length ?? 0}</Descriptions.Item>
-            <Descriptions.Item label={t("Redaction Policies")}>{policyPreviewResult?.decision?.redaction_policy_ids?.length ?? 0}</Descriptions.Item>
-            <Descriptions.Item label={t("Agent")}>{policyPreviewResult?.agent?.name}</Descriptions.Item>
-            <Descriptions.Item label={t("Tool")}>{policyPreviewResult?.tool?.name}</Descriptions.Item>
-          </Descriptions>
-          <div className="detail-json-grid">
-            <div>
-              <Text strong>{t("Explanation")}</Text>
-              <JsonBlock value={policyPreviewResult?.decision?.explanation} />
-            </div>
-            <div>
-              <Text strong>{t("Matched Policies")}</Text>
-              <JsonBlock value={policyPreviewResult?.decision?.matched_policies} />
-            </div>
-          </div>
-          <JsonBlock value={policyPreviewResult?.decision} />
+          <Tabs
+            className="detail-tabs"
+            items={[
+              {
+                key: "overview",
+                label: t("Overview"),
+                children: (
+                  <>
+                    <Descriptions bordered size="small" column={1}>
+                      <Descriptions.Item label={t("Decision")}>{policyPreviewResult?.decision?.action}</Descriptions.Item>
+                      <Descriptions.Item label={t("Matched Policy")}>
+                        {policyPreviewResult?.decision?.matched_policy_name || "-"}
+                      </Descriptions.Item>
+                      <Descriptions.Item label={t("Reason")}>{policyPreviewResult?.decision?.reason || "-"}</Descriptions.Item>
+                      <Descriptions.Item label={t("Matched Policies")}>
+                        {policyPreviewResult?.decision?.matched_policies?.length ?? 0}
+                      </Descriptions.Item>
+                      <Descriptions.Item label={t("Redaction Policies")}>
+                        {policyPreviewResult?.decision?.redaction_policy_ids?.length ?? 0}
+                      </Descriptions.Item>
+                      <Descriptions.Item label={t("Agent")}>{policyPreviewResult?.agent?.name}</Descriptions.Item>
+                      <Descriptions.Item label={t("Tool")}>{policyPreviewResult?.tool?.name}</Descriptions.Item>
+                    </Descriptions>
+                    <div className="detail-section">
+                      <Text strong>{t("Decision Trace")}</Text>
+                      <DecisionTrace trace={policyPreviewResult?.decision?.decision_trace} t={t} />
+                    </div>
+                  </>
+                ),
+              },
+              {
+                key: "evidence",
+                label: t("Evidence"),
+                children: (
+                  <div className="detail-json-grid">
+                    <div>
+                      <Text strong>{t("Explanation")}</Text>
+                      <JsonBlock value={policyPreviewResult?.decision?.explanation} />
+                    </div>
+                    <div>
+                      <Text strong>{t("Matched Policies")}</Text>
+                      <JsonBlock value={policyPreviewResult?.decision?.matched_policies} />
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: "raw",
+                label: t("Raw JSON"),
+                children: <JsonBlock value={policyPreviewResult?.decision} />,
+              },
+            ]}
+          />
         </Modal>
 
         <Modal title={t("Approval Details")} open={Boolean(selectedApproval)} onCancel={() => setSelectedApproval(null)} footer={null} width={820}>
@@ -1335,52 +1451,98 @@ export default function App() {
         </Modal>
 
         <Modal title={t("Invocation Details")} open={Boolean(selectedInvocation)} onCancel={() => setSelectedInvocation(null)} footer={null} width={920}>
-          <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label={t("ID")}>{selectedInvocation?.id}</Descriptions.Item>
-            <Descriptions.Item label={t("Agent")}>{selectedInvocation?.agent_name}</Descriptions.Item>
-            <Descriptions.Item label={t("Tool")}>{selectedInvocation?.tool_name}</Descriptions.Item>
-            <Descriptions.Item label={t("Status")}>
-              {selectedInvocation ? <StatusTag status={selectedInvocation.status} t={t} /> : null}
-            </Descriptions.Item>
-            <Descriptions.Item label={t("Latency")}>{selectedInvocation?.latency_ms ?? 0} ms</Descriptions.Item>
-            <Descriptions.Item label={t("Matched Policy")}>{selectedInvocation?.matched_policy_id || "-"}</Descriptions.Item>
-            <Descriptions.Item label={t("Approval")}>{selectedInvocation?.approval_id || "-"}</Descriptions.Item>
-            <Descriptions.Item label={t("Error")}>{selectedInvocation?.error_message || "-"}</Descriptions.Item>
-            <Descriptions.Item label={t("Created")}>
-              {selectedInvocation?.created_at ? new Date(selectedInvocation.created_at).toLocaleString() : "-"}
-            </Descriptions.Item>
-          </Descriptions>
-          <div className="detail-json-grid">
-            <div>
-              <Text strong>{t("Request")}</Text>
-              <JsonBlock value={selectedInvocation?.request_args} />
-            </div>
-            <div>
-              <Text strong>{t("Redacted Response")}</Text>
-              <JsonBlock value={selectedInvocation?.response_data_redacted} />
-            </div>
-            <div>
-              <Text strong>{t("Policy Decision")}</Text>
-              <JsonBlock value={selectedInvocation?.policy_decision} />
-            </div>
-          </div>
+          <Tabs
+            className="detail-tabs"
+            items={[
+              {
+                key: "overview",
+                label: t("Overview"),
+                children: (
+                  <>
+                    <Descriptions bordered size="small" column={1}>
+                      <Descriptions.Item label={t("ID")}>{selectedInvocation?.id}</Descriptions.Item>
+                      <Descriptions.Item label={t("Agent")}>{selectedInvocation?.agent_name}</Descriptions.Item>
+                      <Descriptions.Item label={t("Tool")}>{selectedInvocation?.tool_name}</Descriptions.Item>
+                      <Descriptions.Item label={t("Status")}>
+                        {selectedInvocation ? <StatusTag status={selectedInvocation.status} t={t} /> : null}
+                      </Descriptions.Item>
+                      <Descriptions.Item label={t("Latency")}>{selectedInvocation?.latency_ms ?? 0} ms</Descriptions.Item>
+                      <Descriptions.Item label={t("Matched Policy")}>{selectedInvocation?.matched_policy_id || "-"}</Descriptions.Item>
+                      <Descriptions.Item label={t("Approval")}>{selectedInvocation?.approval_id || "-"}</Descriptions.Item>
+                      <Descriptions.Item label={t("Error")}>{selectedInvocation?.error_message || "-"}</Descriptions.Item>
+                      <Descriptions.Item label={t("Created")}>
+                        {selectedInvocation?.created_at ? new Date(selectedInvocation.created_at).toLocaleString() : "-"}
+                      </Descriptions.Item>
+                    </Descriptions>
+                    <div className="detail-section">
+                      <Text strong>{t("Decision Trace")}</Text>
+                      <DecisionTrace trace={selectedInvocation?.policy_decision?.decision_trace} t={t} />
+                    </div>
+                  </>
+                ),
+              },
+              {
+                key: "payload",
+                label: t("Payload"),
+                children: (
+                  <div className="detail-json-grid">
+                    <div>
+                      <Text strong>{t("Request")}</Text>
+                      <JsonBlock value={selectedInvocation?.request_args} />
+                    </div>
+                    <div>
+                      <Text strong>{t("Redacted Response")}</Text>
+                      <JsonBlock value={selectedInvocation?.response_data_redacted} />
+                    </div>
+                    <div>
+                      <Text strong>{t("Policy Decision")}</Text>
+                      <JsonBlock value={selectedInvocation?.policy_decision} />
+                    </div>
+                  </div>
+                ),
+              },
+            ]}
+          />
         </Modal>
 
         <Modal title={t("Audit Log Details")} open={Boolean(selectedAuditLog)} onCancel={() => setSelectedAuditLog(null)} footer={null} width={860}>
-          <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label={t("ID")}>{selectedAuditLog?.id}</Descriptions.Item>
-            <Descriptions.Item label={t("Event")}>{selectedAuditLog?.event_type}</Descriptions.Item>
-            <Descriptions.Item label={t("Actor")}>
-              {[selectedAuditLog?.actor_type, selectedAuditLog?.actor_id].filter(Boolean).join(" / ") || "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label={t("Resource")}>
-              {[selectedAuditLog?.resource_type, selectedAuditLog?.resource_id].filter(Boolean).join(" / ") || "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label={t("Created")}>
-              {selectedAuditLog?.created_at ? new Date(selectedAuditLog.created_at).toLocaleString() : "-"}
-            </Descriptions.Item>
-          </Descriptions>
-          <JsonBlock value={selectedAuditLog?.detail_json} />
+          <Tabs
+            className="detail-tabs"
+            items={[
+              {
+                key: "overview",
+                label: t("Overview"),
+                children: (
+                  <>
+                    <Descriptions bordered size="small" column={1}>
+                      <Descriptions.Item label={t("ID")}>{selectedAuditLog?.id}</Descriptions.Item>
+                      <Descriptions.Item label={t("Event")}>{selectedAuditLog?.event_type}</Descriptions.Item>
+                      <Descriptions.Item label={t("Actor")}>
+                        {[selectedAuditLog?.actor_type, selectedAuditLog?.actor_id].filter(Boolean).join(" / ") || "-"}
+                      </Descriptions.Item>
+                      <Descriptions.Item label={t("Resource")}>
+                        {[selectedAuditLog?.resource_type, selectedAuditLog?.resource_id].filter(Boolean).join(" / ") || "-"}
+                      </Descriptions.Item>
+                      <Descriptions.Item label={t("Created")}>
+                        {selectedAuditLog?.created_at ? new Date(selectedAuditLog.created_at).toLocaleString() : "-"}
+                      </Descriptions.Item>
+                    </Descriptions>
+                    {selectedAuditLog?.detail_json?.policy_decision ? (
+                      <div className="detail-section">
+                        <Text strong>{t("Decision Trace")}</Text>
+                        <DecisionTrace trace={selectedAuditLog.detail_json.policy_decision.decision_trace} t={t} />
+                      </div>
+                    ) : null}
+                  </>
+                ),
+              },
+              {
+                key: "raw",
+                label: t("Raw JSON"),
+                children: <JsonBlock value={selectedAuditLog?.detail_json} />,
+              },
+            ]}
+          />
         </Modal>
       </Content>
       </Layout>
