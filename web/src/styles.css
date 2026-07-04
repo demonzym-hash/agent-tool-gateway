@@ -44,6 +44,10 @@ body {
   width: min(260px, 72vw);
 }
 
+.language-select {
+  min-width: 112px;
+}
+
 .app-content {
   width: min(1440px, 100%);
   margin: 0 auto;

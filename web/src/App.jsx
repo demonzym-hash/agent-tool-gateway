@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Col,
+  ConfigProvider,
   Descriptions,
   Form,
   Input,
@@ -34,10 +35,148 @@ import {
   SyncOutlined,
   ToolOutlined,
 } from "@ant-design/icons";
+import enUS from "antd/locale/en_US";
+import zhCN from "antd/locale/zh_CN";
 
 const { Header, Content } = Layout;
 const { Text, Title } = Typography;
 const adminTokenStorageKey = "atg_admin_token";
+const languageStorageKey = "atg_console_language";
+
+const zhText = {
+  "ATG Console": "ATG 控制台",
+  "Agent Tool Gateway": "Agent Tool Gateway",
+  "Admin Token": "管理令牌",
+  "Paste server ADMIN_TOKEN": "输入服务器 ADMIN_TOKEN",
+  Enter: "进入",
+  "Local mode": "本地模式",
+  "Admin token": "管理令牌",
+  server: "服务",
+  Refresh: "刷新",
+  Lock: "锁定",
+  Agents: "Agent",
+  "Active Tools": "活跃工具",
+  "Audit Events": "审计事件",
+  Agent: "Agent",
+  Tool: "工具",
+  "Disabled": "禁用",
+  "Pending Approvals": "待审批",
+  "Success Calls": "成功调用",
+  "Avg Latency": "平均延迟",
+  success: "成功",
+  failed: "失败",
+  denied: "拒绝",
+  pending: "待处理",
+  "pending_approval": "待审批",
+  active: "启用",
+  disabled: "禁用",
+  approved: "已批准",
+  rejected: "已拒绝",
+  "One-time API key": "一次性 API Key",
+  "Create Agent": "创建 Agent",
+  "Agent List": "Agent 列表",
+  Name: "名称",
+  Owner: "负责人",
+  Source: "来源",
+  Description: "描述",
+  Status: "状态",
+  Created: "创建时间",
+  Updated: "更新时间",
+  Actions: "操作",
+  Rotate: "轮换",
+  Disable: "禁用",
+  Details: "详情",
+  Test: "测试",
+  Invoke: "调用",
+  Approve: "批准",
+  Reject: "拒绝",
+  "Disable this agent?": "确认禁用这个 Agent？",
+  "Disable this tool?": "确认禁用这个工具？",
+  "Disable this policy?": "确认禁用这条策略？",
+  "Reject this approval?": "确认拒绝这条审批？",
+  "Agent created": "Agent 已创建",
+  "Agent key rotated": "Agent Key 已轮换",
+  "Agent disabled": "Agent 已禁用",
+  "Tool created": "工具已创建",
+  "Tool disabled": "工具已禁用",
+  "Policy created": "策略已创建",
+  "Policy disabled": "策略已禁用",
+  "Paste an agent API key first": "请先输入 Agent API Key",
+  "Approval executed": "审批已执行",
+  "Approval rejected": "审批已拒绝",
+  Tools: "工具",
+  "Create HTTP Tool": "创建 HTTP 工具",
+  "Tool List": "工具列表",
+  Method: "方法",
+  Risk: "风险",
+  Endpoint: "端点",
+  Timeout: "超时",
+  "Headers JSON": "请求头 JSON",
+  "Authorization and API-key headers are stored encrypted": "Authorization 和 API Key 请求头会加密存储",
+  "Input Schema JSON": "输入 Schema JSON",
+  "Output Schema JSON": "输出 Schema JSON",
+  "Create Tool": "创建工具",
+  "Agent API key for invoke": "用于调用的 Agent API Key",
+  Audit: "审计",
+  Event: "事件",
+  Actor: "操作者",
+  Resource: "资源",
+  Latency: "延迟",
+  Approver: "审批人",
+  "Invocation status": "调用状态",
+  "Audit event": "审计事件",
+  "Audit actor": "审计操作者",
+  "Audit resource": "审计资源",
+  "Approval status": "审批状态",
+  Apply: "应用",
+  Reset: "重置",
+  Approvals: "审批",
+  Invocations: "调用记录",
+  "Audit Logs": "审计日志",
+  Policies: "策略",
+  "Create Policy": "创建策略",
+  Action: "动作",
+  Priority: "优先级",
+  "Condition JSON": "条件 JSON",
+  "Scope JSON": "范围 JSON",
+  "Use scope.redaction for custom redact fields or regex patterns.": "使用 scope.redaction 配置自定义脱敏字段或正则规则。",
+  "Preview Policy": "预览策略",
+  "Input JSON": "输入 JSON",
+  "Preview Decision": "预览决策",
+  "Policy List": "策略列表",
+  Enabled: "启用",
+  "Tool Test Result": "工具测试结果",
+  HTTP: "HTTP",
+  "Invocation Result": "调用结果",
+  Invocation: "调用",
+  "Policy Preview": "策略预览",
+  Decision: "决策",
+  "Matched Policy": "命中策略",
+  Reason: "原因",
+  "Matched Policies": "命中策略数",
+  "Redaction Policies": "脱敏策略数",
+  Explanation: "解释",
+  "Approval Details": "审批详情",
+  ID: "ID",
+  Comment: "备注",
+  "Policy Details": "策略详情",
+  Condition: "条件",
+  Scope: "范围",
+  "Invocation Details": "调用详情",
+  Approval: "审批",
+  Error: "错误",
+  Request: "请求",
+  "Redacted Response": "脱敏响应",
+  "Policy Decision": "策略决策",
+  "Audit Log Details": "审计日志详情",
+  Language: "语言",
+  Chinese: "中文",
+  English: "English",
+};
+
+function translate(language, text) {
+  return language === "zh" ? zhText[text] || text : text;
+}
 
 const samplePayload = {
   order_id: "ord_demo",
@@ -69,9 +208,9 @@ function JsonBlock({ value }) {
   return <pre className="json-block">{JSON.stringify(value ?? {}, null, 2)}</pre>;
 }
 
-function StatusTag({ status }) {
+function StatusTag({ status, t = (value) => value }) {
   const color = status === "active" || status === "success" ? "green" : status === "failed" ? "red" : "default";
-  return <Tag color={color}>{status}</Tag>;
+  return <Tag color={color}>{t(status)}</Tag>;
 }
 
 export default function App() {
@@ -89,6 +228,7 @@ export default function App() {
   const [policyPreviewResult, setPolicyPreviewResult] = useState(null);
   const [invokeKey, setInvokeKey] = useState("");
   const [adminToken, setAdminToken] = useState(() => localStorage.getItem(adminTokenStorageKey) || "");
+  const [language, setLanguage] = useState(() => localStorage.getItem(languageStorageKey) || "zh");
   const [accessGranted, setAccessGranted] = useState(() => localStorage.getItem("atg_console_access") === "granted");
   const [logFilters, setLogFilters] = useState({
     invocation_agent_id: "",
@@ -114,6 +254,8 @@ export default function App() {
   const [toolForm] = Form.useForm();
   const [policyForm] = Form.useForm();
   const [policyPreviewForm] = Form.useForm();
+  const t = useMemo(() => (text) => translate(language, text), [language]);
+  const antdLocale = language === "zh" ? zhCN : enUS;
 
   const activeTools = useMemo(() => tools.filter((tool) => tool.status === "active"), [tools]);
   const agentOptions = useMemo(() => agents.map((agent) => ({ value: agent.id, label: agent.name })), [agents]);
@@ -233,6 +375,11 @@ export default function App() {
     }
   }
 
+  function saveLanguage(value) {
+    localStorage.setItem(languageStorageKey, value);
+    setLanguage(value);
+  }
+
   function enterConsole({ localMode = false } = {}) {
     if (localMode) {
       saveAdminToken("");
@@ -263,7 +410,7 @@ export default function App() {
       });
       setOneTimeKey(data.api_key);
       agentForm.resetFields();
-      message.success("Agent created");
+      message.success(t("Agent created"));
       await refresh();
     } catch (error) {
       message.error(error.message);
@@ -276,7 +423,7 @@ export default function App() {
         method: "POST",
       });
       setOneTimeKey(data.api_key);
-      message.success("Agent key rotated");
+      message.success(t("Agent key rotated"));
       await refresh();
     } catch (error) {
       message.error(error.message);
@@ -288,7 +435,7 @@ export default function App() {
       await api(`/api/v1/agents/${agent.id}/disable`, {
         method: "POST",
       });
-      message.success("Agent disabled");
+      message.success(t("Agent disabled"));
       await refresh();
     } catch (error) {
       message.error(error.message);
@@ -307,7 +454,7 @@ export default function App() {
         }),
       });
       toolForm.resetFields();
-      message.success("Tool created");
+      message.success(t("Tool created"));
       await refresh();
     } catch (error) {
       message.error(error.message);
@@ -327,7 +474,7 @@ export default function App() {
         }),
       });
       policyForm.resetFields();
-      message.success("Policy created");
+      message.success(t("Policy created"));
       await refresh();
     } catch (error) {
       message.error(error.message);
@@ -355,7 +502,7 @@ export default function App() {
       await api(`/api/v1/policies/${policy.id}/disable`, {
         method: "POST",
       });
-      message.success("Policy disabled");
+      message.success(t("Policy disabled"));
       await refresh();
     } catch (error) {
       message.error(error.message);
@@ -379,7 +526,7 @@ export default function App() {
       await api(`/api/v1/tools/${tool.id}/disable`, {
         method: "POST",
       });
-      message.success("Tool disabled");
+      message.success(t("Tool disabled"));
       await refresh();
     } catch (error) {
       message.error(error.message);
@@ -388,7 +535,7 @@ export default function App() {
 
   async function invokeTool(tool) {
     if (!invokeKey) {
-      message.warning("Paste an agent API key first");
+      message.warning(t("Paste an agent API key first"));
       return;
     }
     try {
@@ -416,7 +563,7 @@ export default function App() {
         }),
       });
       setInvokeResult({ tool: "approval", ...data });
-      message.success(action === "approve" ? "Approval executed" : "Approval rejected");
+      message.success(action === "approve" ? t("Approval executed") : t("Approval rejected"));
       await refresh();
     } catch (error) {
       message.error(error.message);
@@ -460,28 +607,28 @@ export default function App() {
   }
 
   const agentColumns = [
-    { title: "Name", dataIndex: "name" },
-    { title: "Owner", dataIndex: "owner" },
-    { title: "Source", dataIndex: "source_type" },
-    { title: "Status", dataIndex: "status", render: (value) => <StatusTag status={value} /> },
-    { title: "Created", dataIndex: "created_at", render: (value) => new Date(value).toLocaleString() },
+    { title: t("Name"), dataIndex: "name" },
+    { title: t("Owner"), dataIndex: "owner" },
+    { title: t("Source"), dataIndex: "source_type" },
+    { title: t("Status"), dataIndex: "status", render: (value) => <StatusTag status={value} t={t} /> },
+    { title: t("Created"), dataIndex: "created_at", render: (value) => new Date(value).toLocaleString() },
     {
-      title: "Actions",
+      title: t("Actions"),
       width: 210,
       render: (_, agent) => (
         <Space>
           <Button icon={<SyncOutlined />} disabled={agent.status !== "active"} onClick={() => rotateAgentKey(agent)}>
-            Rotate
+            {t("Rotate")}
           </Button>
           <Popconfirm
-            title="Disable this agent?"
-            okText="Disable"
+            title={t("Disable this agent?")}
+            okText={t("Disable")}
             okButtonProps={{ danger: true }}
             onConfirm={() => disableAgent(agent)}
             disabled={agent.status !== "active"}
           >
             <Button danger icon={<DeleteOutlined />} disabled={agent.status !== "active"}>
-              Disable
+              {t("Disable")}
             </Button>
           </Popconfirm>
         </Space>
@@ -490,31 +637,31 @@ export default function App() {
   ];
 
   const toolColumns = [
-    { title: "Name", dataIndex: "name" },
-    { title: "Method", dataIndex: "method", width: 90 },
-    { title: "Risk", dataIndex: "risk_level", width: 100 },
-    { title: "Endpoint", dataIndex: "endpoint", ellipsis: true },
-    { title: "Status", dataIndex: "status", render: (value) => <StatusTag status={value} />, width: 110 },
+    { title: t("Name"), dataIndex: "name" },
+    { title: t("Method"), dataIndex: "method", width: 90 },
+    { title: t("Risk"), dataIndex: "risk_level", width: 100 },
+    { title: t("Endpoint"), dataIndex: "endpoint", ellipsis: true },
+    { title: t("Status"), dataIndex: "status", render: (value) => <StatusTag status={value} t={t} />, width: 110 },
     {
-      title: "Actions",
+      title: t("Actions"),
       width: 210,
       render: (_, tool) => (
         <Space>
           <Button icon={<PlayCircleOutlined />} disabled={tool.status !== "active"} onClick={() => testTool(tool)}>
-            Test
+            {t("Test")}
           </Button>
           <Button icon={<ApiOutlined />} type="primary" disabled={tool.status !== "active"} onClick={() => invokeTool(tool)}>
-            Invoke
+            {t("Invoke")}
           </Button>
           <Popconfirm
-            title="Disable this tool?"
-            okText="Disable"
+            title={t("Disable this tool?")}
+            okText={t("Disable")}
             okButtonProps={{ danger: true }}
             onConfirm={() => disableTool(tool)}
             disabled={tool.status !== "active"}
           >
             <Button danger icon={<DeleteOutlined />} disabled={tool.status !== "active"}>
-              Disable
+              {t("Disable")}
             </Button>
           </Popconfirm>
         </Space>
@@ -523,44 +670,44 @@ export default function App() {
   ];
 
   const auditColumns = [
-    { title: "Event", dataIndex: "event_type" },
-    { title: "Actor", dataIndex: "actor_type", width: 110 },
-    { title: "Resource", dataIndex: "resource_type", width: 120 },
-    { title: "Created", dataIndex: "created_at", render: (value) => new Date(value).toLocaleString(), width: 220 },
+    { title: t("Event"), dataIndex: "event_type" },
+    { title: t("Actor"), dataIndex: "actor_type", width: 110 },
+    { title: t("Resource"), dataIndex: "resource_type", width: 120 },
+    { title: t("Created"), dataIndex: "created_at", render: (value) => new Date(value).toLocaleString(), width: 220 },
     {
-      title: "Actions",
+      title: t("Actions"),
       width: 110,
       render: (_, auditLog) => (
         <Button icon={<EyeOutlined />} onClick={() => openAuditLogDetails(auditLog)}>
-          Details
+          {t("Details")}
         </Button>
       ),
     },
   ];
 
   const policyColumns = [
-    { title: "Name", dataIndex: "name" },
-    { title: "Action", dataIndex: "action", width: 110, render: (value) => <Tag color={value === "deny" ? "red" : "green"}>{value}</Tag> },
-    { title: "Priority", dataIndex: "priority", width: 100 },
-    { title: "Enabled", dataIndex: "enabled", width: 100, render: (value) => <Tag color={value ? "green" : "default"}>{String(value)}</Tag> },
-    { title: "Description", dataIndex: "description", ellipsis: true, render: (value) => value || "-" },
+    { title: t("Name"), dataIndex: "name" },
+    { title: t("Action"), dataIndex: "action", width: 110, render: (value) => <Tag color={value === "deny" ? "red" : "green"}>{value}</Tag> },
+    { title: t("Priority"), dataIndex: "priority", width: 100 },
+    { title: t("Enabled"), dataIndex: "enabled", width: 100, render: (value) => <Tag color={value ? "green" : "default"}>{value ? t("Enabled") : t("Disabled")}</Tag> },
+    { title: t("Description"), dataIndex: "description", ellipsis: true, render: (value) => value || "-" },
     {
-      title: "Actions",
+      title: t("Actions"),
       width: 220,
       render: (_, policy) => (
         <Space>
           <Button icon={<EyeOutlined />} onClick={() => openPolicyDetails(policy)}>
-            Details
+            {t("Details")}
           </Button>
           <Popconfirm
-            title="Disable this policy?"
-            okText="Disable"
+            title={t("Disable this policy?")}
+            okText={t("Disable")}
             okButtonProps={{ danger: true }}
             onConfirm={() => disablePolicy(policy)}
             disabled={!policy.enabled}
           >
             <Button danger icon={<DeleteOutlined />} disabled={!policy.enabled}>
-              Disable
+              {t("Disable")}
             </Button>
           </Popconfirm>
         </Space>
@@ -569,47 +716,47 @@ export default function App() {
   ];
 
   const invocationColumns = [
-    { title: "Agent", dataIndex: "agent_name" },
-    { title: "Tool", dataIndex: "tool_name" },
-    { title: "Status", dataIndex: "status", render: (value) => <StatusTag status={value} />, width: 110 },
-    { title: "Latency", dataIndex: "latency_ms", render: (value) => `${value} ms`, width: 110 },
-    { title: "Created", dataIndex: "created_at", render: (value) => new Date(value).toLocaleString(), width: 220 },
+    { title: t("Agent"), dataIndex: "agent_name" },
+    { title: t("Tool"), dataIndex: "tool_name" },
+    { title: t("Status"), dataIndex: "status", render: (value) => <StatusTag status={value} t={t} />, width: 110 },
+    { title: t("Latency"), dataIndex: "latency_ms", render: (value) => `${value} ms`, width: 110 },
+    { title: t("Created"), dataIndex: "created_at", render: (value) => new Date(value).toLocaleString(), width: 220 },
     {
-      title: "Actions",
+      title: t("Actions"),
       width: 110,
       render: (_, invocation) => (
         <Button icon={<EyeOutlined />} onClick={() => openInvocationDetails(invocation)}>
-          Details
+          {t("Details")}
         </Button>
       ),
     },
   ];
 
   const approvalColumns = [
-    { title: "Reason", dataIndex: "reason", ellipsis: true },
-    { title: "Status", dataIndex: "status", render: (value) => <StatusTag status={value} />, width: 110 },
-    { title: "Approver", dataIndex: "approver", width: 130 },
-    { title: "Created", dataIndex: "created_at", render: (value) => new Date(value).toLocaleString(), width: 220 },
+    { title: t("Reason"), dataIndex: "reason", ellipsis: true },
+    { title: t("Status"), dataIndex: "status", render: (value) => <StatusTag status={value} t={t} />, width: 110 },
+    { title: t("Approver"), dataIndex: "approver", width: 130 },
+    { title: t("Created"), dataIndex: "created_at", render: (value) => new Date(value).toLocaleString(), width: 220 },
     {
-      title: "Actions",
+      title: t("Actions"),
       width: 300,
       render: (_, approval) => (
         <Space>
           <Button icon={<EyeOutlined />} onClick={() => openApprovalDetails(approval)}>
-            Details
+            {t("Details")}
           </Button>
           <Button type="primary" disabled={approval.status !== "pending"} onClick={() => decideApproval(approval, "approve")}>
-            Approve
+            {t("Approve")}
           </Button>
           <Popconfirm
-            title="Reject this approval?"
-            okText="Reject"
+            title={t("Reject this approval?")}
+            okText={t("Reject")}
             okButtonProps={{ danger: true }}
             onConfirm={() => decideApproval(approval, "reject")}
             disabled={approval.status !== "pending"}
           >
             <Button danger disabled={approval.status !== "pending"}>
-              Reject
+              {t("Reject")}
             </Button>
           </Popconfirm>
         </Space>
@@ -619,58 +766,79 @@ export default function App() {
 
   if (!accessGranted) {
     return (
-      <Layout className="app-shell access-shell">
-        <div className="access-panel">
-          <Space size={12}>
-            <SafetyCertificateOutlined className="brand-icon" />
-            <div>
-              <Title level={3}>ATG Console</Title>
-              <Text>Agent Tool Gateway</Text>
-            </div>
-          </Space>
-          <Form layout="vertical" className="access-form" onFinish={() => enterConsole()}>
-            <Form.Item label="Admin Token">
-              <Input.Password
-                autoFocus
-                placeholder="Paste server ADMIN_TOKEN"
-                value={adminToken}
-                onChange={(event) => saveAdminToken(event.target.value)}
-              />
-            </Form.Item>
-            <Space wrap>
-              <Button type="primary" htmlType="submit">
-                Enter
-              </Button>
-              <Button onClick={() => enterConsole({ localMode: true })}>Local mode</Button>
+      <ConfigProvider locale={antdLocale}>
+        <Layout className="app-shell access-shell">
+          <div className="access-panel">
+            <Space size={12}>
+              <SafetyCertificateOutlined className="brand-icon" />
+              <div>
+                <Title level={3}>{t("ATG Console")}</Title>
+                <Text>{t("Agent Tool Gateway")}</Text>
+              </div>
             </Space>
-          </Form>
-        </div>
-      </Layout>
+            <Form layout="vertical" className="access-form" onFinish={() => enterConsole()}>
+              <Form.Item label={t("Admin Token")}>
+                <Input.Password
+                  autoFocus
+                  placeholder={t("Paste server ADMIN_TOKEN")}
+                  value={adminToken}
+                  onChange={(event) => saveAdminToken(event.target.value)}
+                />
+              </Form.Item>
+              <Space wrap>
+                <Button type="primary" htmlType="submit">
+                  {t("Enter")}
+                </Button>
+                <Button onClick={() => enterConsole({ localMode: true })}>{t("Local mode")}</Button>
+                <Select
+                  className="language-select"
+                  value={language}
+                  onChange={saveLanguage}
+                  options={[
+                    { value: "zh", label: t("Chinese") },
+                    { value: "en", label: t("English") },
+                  ]}
+                />
+              </Space>
+            </Form>
+          </div>
+        </Layout>
+      </ConfigProvider>
     );
   }
 
   return (
-    <Layout className="app-shell">
+    <ConfigProvider locale={antdLocale}>
+      <Layout className="app-shell">
       <Header className="app-header">
         <Space size={12}>
           <SafetyCertificateOutlined className="brand-icon" />
           <div>
-            <Title level={4}>ATG Console</Title>
-            <Text>Agent Tool Gateway</Text>
+            <Title level={4}>{t("ATG Console")}</Title>
+            <Text>{t("Agent Tool Gateway")}</Text>
           </div>
         </Space>
         <Space>
           <Input.Password
             className="admin-token-input"
-            placeholder="Admin token"
+            placeholder={t("Admin token")}
             value={adminToken}
             onChange={(event) => saveAdminToken(event.target.value)}
           />
-          <Tag color={health === "ok" ? "green" : "red"}>server {health}</Tag>
+          <Select
+            className="language-select"
+            value={language}
+            onChange={saveLanguage}
+            options={[
+              { value: "zh", label: t("Chinese") },
+              { value: "en", label: t("English") },
+            ]}
+          />
+          <Tag color={health === "ok" ? "green" : "red"}>{t("server")} {health}</Tag>
           <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
-            Refresh
+            {t("Refresh")}
           </Button>
-          <Button onClick={lockConsole}>Lock</Button>
+          <Button onClick={lockConsole}>{t("Lock")}</Button>
         </Space>
       </Header>
 
@@ -678,41 +846,41 @@ export default function App() {
         <Row gutter={[16, 16]} className="metrics">
           <Col xs={24} sm={12} xl={4}>
             <Card>
-              <Statistic title="Agents" value={agents.length} prefix={<KeyOutlined />} />
+              <Statistic title={t("Agents")} value={agents.length} prefix={<KeyOutlined />} />
             </Card>
           </Col>
           <Col xs={24} sm={12} xl={4}>
             <Card>
-              <Statistic title="Active Tools" value={activeTools.length} prefix={<ToolOutlined />} />
+              <Statistic title={t("Active Tools")} value={activeTools.length} prefix={<ToolOutlined />} />
             </Card>
           </Col>
           <Col xs={24} sm={12} xl={4}>
             <Card>
-              <Statistic title="Audit Events" value={auditLogs.length} prefix={<AuditOutlined />} />
+              <Statistic title={t("Audit Events")} value={auditLogs.length} prefix={<AuditOutlined />} />
             </Card>
           </Col>
           <Col xs={24} sm={12} xl={4}>
             <Card>
-              <Statistic title="Pending Approvals" value={dashboardStats.pendingApprovals} />
+              <Statistic title={t("Pending Approvals")} value={dashboardStats.pendingApprovals} />
             </Card>
           </Col>
           <Col xs={24} sm={12} xl={4}>
             <Card>
-              <Statistic title="Success Calls" value={dashboardStats.successfulInvocations} />
+              <Statistic title={t("Success Calls")} value={dashboardStats.successfulInvocations} />
             </Card>
           </Col>
           <Col xs={24} sm={12} xl={4}>
             <Card>
-              <Statistic title="Avg Latency" value={dashboardStats.averageLatency} suffix="ms" />
+              <Statistic title={t("Avg Latency")} value={dashboardStats.averageLatency} suffix="ms" />
             </Card>
           </Col>
           <Col xs={24}>
             <Card>
               <Space wrap>
-                <Tag color="green">success {dashboardStats.successfulInvocations}</Tag>
-                <Tag color="red">failed {dashboardStats.failedInvocations}</Tag>
-                <Tag color="orange">denied {dashboardStats.deniedInvocations}</Tag>
-                <Tag>pending {dashboardStats.pendingInvocations}</Tag>
+                <Tag color="green">{t("success")} {dashboardStats.successfulInvocations}</Tag>
+                <Tag color="red">{t("failed")} {dashboardStats.failedInvocations}</Tag>
+                <Tag color="orange">{t("denied")} {dashboardStats.deniedInvocations}</Tag>
+                <Tag>{t("pending")} {dashboardStats.pendingInvocations}</Tag>
               </Space>
             </Card>
           </Col>
@@ -723,7 +891,7 @@ export default function App() {
             className="key-alert"
             type="success"
             showIcon
-            message="One-time API key"
+            message={t("One-time API key")}
             description={<Text code copyable>{oneTimeKey}</Text>}
             closable
             onClose={() => setOneTimeKey("")}
@@ -735,32 +903,32 @@ export default function App() {
           items={[
             {
               key: "agents",
-              label: "Agents",
+              label: t("Agents"),
               children: (
                 <Row gutter={[16, 16]}>
                   <Col xs={24} lg={8}>
-                    <Card title="Create Agent">
+                    <Card title={t("Create Agent")}>
                       <Form form={agentForm} layout="vertical" onFinish={createAgent}>
-                        <Form.Item name="name" label="Name" initialValue="customer-service-agent" rules={[{ required: true }]}>
+                        <Form.Item name="name" label={t("Name")} initialValue="customer-service-agent" rules={[{ required: true }]}>
                           <Input />
                         </Form.Item>
-                        <Form.Item name="owner" label="Owner" initialValue="ops">
+                        <Form.Item name="owner" label={t("Owner")} initialValue="ops">
                           <Input />
                         </Form.Item>
-                        <Form.Item name="source_type" label="Source" initialValue="custom">
+                        <Form.Item name="source_type" label={t("Source")} initialValue="custom">
                           <Select options={[{ value: "custom" }, { value: "workflow" }, { value: "assistant" }]} />
                         </Form.Item>
-                        <Form.Item name="description" label="Description">
+                        <Form.Item name="description" label={t("Description")}>
                           <Input.TextArea rows={3} />
                         </Form.Item>
                         <Button icon={<PlusOutlined />} type="primary" htmlType="submit" block>
-                          Create Agent
+                          {t("Create Agent")}
                         </Button>
                       </Form>
                     </Card>
                   </Col>
                   <Col xs={24} lg={16}>
-                    <Card title="Agent List">
+                    <Card title={t("Agent List")}>
                       <Table rowKey="id" columns={agentColumns} dataSource={agents} loading={loading} pagination={false} />
                     </Card>
                   </Col>
@@ -769,18 +937,18 @@ export default function App() {
             },
             {
               key: "tools",
-              label: "Tools",
+              label: t("Tools"),
               children: (
                 <Row gutter={[16, 16]}>
                   <Col xs={24} lg={8}>
-                    <Card title="Create HTTP Tool">
+                    <Card title={t("Create HTTP Tool")}>
                       <Form form={toolForm} layout="vertical" onFinish={createTool}>
-                        <Form.Item name="name" label="Name" initialValue="refund_order" rules={[{ required: true }]}>
+                        <Form.Item name="name" label={t("Name")} initialValue="refund_order" rules={[{ required: true }]}>
                           <Input />
                         </Form.Item>
                         <Form.Item
                           name="endpoint"
-                          label="Endpoint"
+                          label={t("Endpoint")}
                           initialValue="http://mock-api:9090/mock/refund_order"
                           rules={[{ required: true }]}
                         >
@@ -788,45 +956,45 @@ export default function App() {
                         </Form.Item>
                         <Row gutter={12}>
                           <Col span={12}>
-                            <Form.Item name="method" label="Method" initialValue="POST">
+                            <Form.Item name="method" label={t("Method")} initialValue="POST">
                               <Select options={[{ value: "POST" }, { value: "GET" }]} />
                             </Form.Item>
                           </Col>
                           <Col span={12}>
-                            <Form.Item name="timeout_ms" label="Timeout" initialValue={5000}>
+                            <Form.Item name="timeout_ms" label={t("Timeout")} initialValue={5000}>
                               <InputNumber min={100} max={60000} step={500} className="full-width" />
                             </Form.Item>
                           </Col>
                         </Row>
-                        <Form.Item name="risk_level" label="Risk" initialValue="medium">
+                        <Form.Item name="risk_level" label={t("Risk")} initialValue="medium">
                           <Select options={[{ value: "low" }, { value: "medium" }, { value: "high" }]} />
                         </Form.Item>
-                        <Form.Item name="owner" label="Owner" initialValue="ops">
+                        <Form.Item name="owner" label={t("Owner")} initialValue="ops">
                           <Input />
                         </Form.Item>
-                        <Form.Item name="headers" label="Headers JSON" tooltip="Authorization and API-key headers are stored encrypted">
+                        <Form.Item name="headers" label={t("Headers JSON")} tooltip={t("Authorization and API-key headers are stored encrypted")}>
                           <Input.TextArea rows={3} />
                         </Form.Item>
                         <Form.Item
                           name="input_schema"
-                          label="Input Schema JSON"
+                          label={t("Input Schema JSON")}
                           initialValue='{"type":"object","required":["order_id","amount"],"properties":{"order_id":{"type":"string"},"amount":{"type":"number","minimum":1},"reason":{"type":"string"}}}'
                         >
                           <Input.TextArea rows={5} />
                         </Form.Item>
-                        <Form.Item name="output_schema" label="Output Schema JSON" initialValue="{}">
+                        <Form.Item name="output_schema" label={t("Output Schema JSON")} initialValue="{}">
                           <Input.TextArea rows={3} />
                         </Form.Item>
                         <Button icon={<PlusOutlined />} type="primary" htmlType="submit" block>
-                          Create Tool
+                          {t("Create Tool")}
                         </Button>
                       </Form>
                     </Card>
                   </Col>
                   <Col xs={24} lg={16}>
                     <Card
-                      title="Tool List"
-                      extra={<Input.Password placeholder="Agent API key for invoke" value={invokeKey} onChange={(e) => setInvokeKey(e.target.value)} />}
+                      title={t("Tool List")}
+                      extra={<Input.Password placeholder={t("Agent API key for invoke")} value={invokeKey} onChange={(e) => setInvokeKey(e.target.value)} />}
                     >
                       <Table rowKey="id" columns={toolColumns} dataSource={tools} loading={loading} pagination={false} />
                     </Card>
@@ -836,7 +1004,7 @@ export default function App() {
             },
             {
               key: "logs",
-              label: "Audit",
+              label: t("Audit"),
               children: (
                 <Row gutter={[16, 16]}>
                   <Col xs={24}>
@@ -845,7 +1013,7 @@ export default function App() {
                         <Select
                           allowClear
                           showSearch
-                          placeholder="Agent"
+                          placeholder={t("Agent")}
                           className="filter-select"
                           value={logFilters.invocation_agent_id || undefined}
                           onChange={(value) => setLogFilters((current) => ({ ...current, invocation_agent_id: value || "" }))}
@@ -855,7 +1023,7 @@ export default function App() {
                         <Select
                           allowClear
                           showSearch
-                          placeholder="Tool"
+                          placeholder={t("Tool")}
                           className="filter-select"
                           value={logFilters.invocation_tool_id || undefined}
                           onChange={(value) => setLogFilters((current) => ({ ...current, invocation_tool_id: value || "" }))}
@@ -864,7 +1032,7 @@ export default function App() {
                         />
                         <Select
                           allowClear
-                          placeholder="Invocation status"
+                          placeholder={t("Invocation status")}
                           className="filter-select"
                           value={logFilters.invocation_status || undefined}
                           onChange={(value) => setLogFilters((current) => ({ ...current, invocation_status: value || "" }))}
@@ -877,7 +1045,7 @@ export default function App() {
                         />
                         <Select
                           allowClear
-                          placeholder="Audit event"
+                          placeholder={t("Audit event")}
                           className="filter-select"
                           value={logFilters.audit_event_type || undefined}
                           onChange={(value) => setLogFilters((current) => ({ ...current, audit_event_type: value || "" }))}
@@ -891,7 +1059,7 @@ export default function App() {
                         />
                         <Select
                           allowClear
-                          placeholder="Audit actor"
+                          placeholder={t("Audit actor")}
                           className="filter-select"
                           value={logFilters.audit_actor_type || undefined}
                           onChange={(value) => setLogFilters((current) => ({ ...current, audit_actor_type: value || "" }))}
@@ -899,7 +1067,7 @@ export default function App() {
                         />
                         <Select
                           allowClear
-                          placeholder="Audit resource"
+                          placeholder={t("Audit resource")}
                           className="filter-select"
                           value={logFilters.audit_resource_type || undefined}
                           onChange={(value) => setLogFilters((current) => ({ ...current, audit_resource_type: value || "" }))}
@@ -907,7 +1075,7 @@ export default function App() {
                         />
                         <Select
                           allowClear
-                          placeholder="Approval status"
+                          placeholder={t("Approval status")}
                           className="filter-select"
                           value={logFilters.approval_status || undefined}
                           onChange={(value) => setLogFilters((current) => ({ ...current, approval_status: value || "" }))}
@@ -932,24 +1100,24 @@ export default function App() {
                           onChange={(value) => setLogFilters((current) => ({ ...current, limit: value || 100 }))}
                         />
                         <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
-                          Apply
+                          {t("Apply")}
                         </Button>
-                        <Button onClick={resetLogFilters}>Reset</Button>
+                        <Button onClick={resetLogFilters}>{t("Reset")}</Button>
                       </Space>
                     </Card>
                   </Col>
                   <Col xs={24}>
-                    <Card title="Approvals">
+                    <Card title={t("Approvals")}>
                       <Table rowKey="id" columns={approvalColumns} dataSource={approvals} loading={loading} pagination={{ pageSize: 6 }} />
                     </Card>
                   </Col>
                   <Col xs={24} xl={12}>
-                    <Card title="Invocations">
+                    <Card title={t("Invocations")}>
                       <Table rowKey="id" columns={invocationColumns} dataSource={invocations} loading={loading} pagination={{ pageSize: 8 }} />
                     </Card>
                   </Col>
                   <Col xs={24} xl={12}>
-                    <Card title="Audit Logs">
+                    <Card title={t("Audit Logs")}>
                       <Table rowKey="id" columns={auditColumns} dataSource={auditLogs} loading={loading} pagination={{ pageSize: 8 }} />
                     </Card>
                   </Col>
@@ -958,38 +1126,38 @@ export default function App() {
             },
             {
               key: "policies",
-              label: "Policies",
+              label: t("Policies"),
               children: (
                 <Row gutter={[16, 16]}>
                   <Col xs={24} lg={8}>
-                    <Card title="Create Policy">
+                    <Card title={t("Create Policy")}>
                       <Form form={policyForm} layout="vertical" onFinish={createPolicy}>
-                        <Form.Item name="name" label="Name" initialValue="Deny delete_user" rules={[{ required: true }]}>
+                        <Form.Item name="name" label={t("Name")} initialValue="Deny delete_user" rules={[{ required: true }]}>
                           <Input />
                         </Form.Item>
                         <Row gutter={12}>
                           <Col span={12}>
-                            <Form.Item name="action" label="Action" initialValue="deny">
+                            <Form.Item name="action" label={t("Action")} initialValue="deny">
                               <Select options={[{ value: "deny" }, { value: "allow" }, { value: "approve" }, { value: "redact" }]} />
                             </Form.Item>
                           </Col>
                           <Col span={12}>
-                            <Form.Item name="priority" label="Priority" initialValue={10}>
+                            <Form.Item name="priority" label={t("Priority")} initialValue={10}>
                               <InputNumber min={1} max={10000} className="full-width" />
                             </Form.Item>
                           </Col>
                         </Row>
-                        <Form.Item name="description" label="Description">
+                        <Form.Item name="description" label={t("Description")}>
                           <Input.TextArea rows={2} />
                         </Form.Item>
-                        <Form.Item name="condition_json" label="Condition JSON" initialValue={'{"tool":"delete_user"}'}>
+                        <Form.Item name="condition_json" label={t("Condition JSON")} initialValue={'{"tool":"delete_user"}'}>
                           <Input.TextArea rows={4} />
                         </Form.Item>
                         <Form.Item
                           name="scope"
-                          label="Scope JSON"
+                          label={t("Scope JSON")}
                           initialValue={"{}"}
-                          tooltip="Use scope.redaction for custom redact fields or regex patterns."
+                          tooltip={t("Use scope.redaction for custom redact fields or regex patterns.")}
                         >
                           <Input.TextArea
                             rows={5}
@@ -999,38 +1167,38 @@ export default function App() {
                           />
                         </Form.Item>
                         <Button icon={<PlusOutlined />} type="primary" htmlType="submit" block>
-                          Create Policy
+                          {t("Create Policy")}
                         </Button>
                       </Form>
                     </Card>
-                    <Card title="Preview Policy" className="stacked-card">
+                    <Card title={t("Preview Policy")} className="stacked-card">
                       <Form
                         form={policyPreviewForm}
                         layout="vertical"
                         onFinish={previewPolicy}
                         initialValues={{ input: '{\n  "amount": 150,\n  "reason": "VIP customer escalation"\n}' }}
                       >
-                        <Form.Item name="agent_id" label="Agent" rules={[{ required: true }]}>
+                        <Form.Item name="agent_id" label={t("Agent")} rules={[{ required: true }]}>
                           <Select showSearch options={agentOptions} optionFilterProp="label" />
                         </Form.Item>
-                        <Form.Item name="tool_id" label="Tool" rules={[{ required: true }]}>
+                        <Form.Item name="tool_id" label={t("Tool")} rules={[{ required: true }]}>
                           <Select showSearch options={toolOptions} optionFilterProp="label" />
                         </Form.Item>
-                        <Form.Item name="input" label="Input JSON">
+                        <Form.Item name="input" label={t("Input JSON")}>
                           <Input.TextArea rows={5} />
                         </Form.Item>
                         <Button icon={<PlayCircleOutlined />} type="primary" htmlType="submit" block>
-                          Preview Decision
+                          {t("Preview Decision")}
                         </Button>
                       </Form>
                     </Card>
                   </Col>
                   <Col xs={24} lg={16}>
-                    <Card title="Policy List">
+                    <Card title={t("Policy List")}>
                       <Space wrap className="toolbar">
                         <Select
                           allowClear
-                          placeholder="Action"
+                          placeholder={t("Action")}
                           value={policyFilters.action || undefined}
                           onChange={(value) => setPolicyFilters((current) => ({ ...current, action: value || "" }))}
                           options={[
@@ -1043,19 +1211,19 @@ export default function App() {
                         />
                         <Select
                           allowClear
-                          placeholder="Enabled"
+                          placeholder={t("Enabled")}
                           value={policyFilters.enabled || undefined}
                           onChange={(value) => setPolicyFilters((current) => ({ ...current, enabled: value || "" }))}
                           options={[
-                            { value: "true", label: "Enabled" },
-                            { value: "false", label: "Disabled" },
+                            { value: "true", label: t("Enabled") },
+                            { value: "false", label: t("Disabled") },
                           ]}
                           style={{ width: 140 }}
                         />
                         <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
-                          Apply
+                          {t("Apply")}
                         </Button>
-                        <Button onClick={resetPolicyFilters}>Reset</Button>
+                        <Button onClick={resetPolicyFilters}>{t("Reset")}</Button>
                       </Space>
                       <Table rowKey="id" columns={policyColumns} dataSource={policies} loading={loading} pagination={false} />
                     </Card>
@@ -1066,155 +1234,156 @@ export default function App() {
           ]}
         />
 
-        <Modal title="Tool Test Result" open={Boolean(testResult)} onCancel={() => setTestResult(null)} footer={null} width={720}>
+        <Modal title={t("Tool Test Result")} open={Boolean(testResult)} onCancel={() => setTestResult(null)} footer={null} width={720}>
           <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label="Tool">{testResult?.tool}</Descriptions.Item>
-            <Descriptions.Item label="HTTP">{testResult?.http_status}</Descriptions.Item>
-            <Descriptions.Item label="Status">{testResult?.status}</Descriptions.Item>
+            <Descriptions.Item label={t("Tool")}>{testResult?.tool}</Descriptions.Item>
+            <Descriptions.Item label={t("HTTP")}>{testResult?.http_status}</Descriptions.Item>
+            <Descriptions.Item label={t("Status")}>{testResult?.status}</Descriptions.Item>
           </Descriptions>
           <JsonBlock value={testResult?.data} />
         </Modal>
 
-        <Modal title="Invocation Result" open={Boolean(invokeResult)} onCancel={() => setInvokeResult(null)} footer={null} width={720}>
+        <Modal title={t("Invocation Result")} open={Boolean(invokeResult)} onCancel={() => setInvokeResult(null)} footer={null} width={720}>
           <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label="Tool">{invokeResult?.tool}</Descriptions.Item>
-            <Descriptions.Item label="Status">{invokeResult?.status}</Descriptions.Item>
-            <Descriptions.Item label="Invocation">{invokeResult?.invocation_id}</Descriptions.Item>
-            <Descriptions.Item label="Audit">{invokeResult?.audit_id}</Descriptions.Item>
+            <Descriptions.Item label={t("Tool")}>{invokeResult?.tool}</Descriptions.Item>
+            <Descriptions.Item label={t("Status")}>{invokeResult?.status}</Descriptions.Item>
+            <Descriptions.Item label={t("Invocation")}>{invokeResult?.invocation_id}</Descriptions.Item>
+            <Descriptions.Item label={t("Audit")}>{invokeResult?.audit_id}</Descriptions.Item>
           </Descriptions>
           <JsonBlock value={invokeResult?.data} />
         </Modal>
 
         <Modal
-          title="Policy Preview"
+          title={t("Policy Preview")}
           open={Boolean(policyPreviewResult)}
           onCancel={() => setPolicyPreviewResult(null)}
           footer={null}
           width={760}
         >
           <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label="Decision">{policyPreviewResult?.decision?.action}</Descriptions.Item>
-            <Descriptions.Item label="Matched Policy">{policyPreviewResult?.decision?.matched_policy_name || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Reason">{policyPreviewResult?.decision?.reason || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Matched Policies">{policyPreviewResult?.decision?.matched_policies?.length ?? 0}</Descriptions.Item>
-            <Descriptions.Item label="Redaction Policies">{policyPreviewResult?.decision?.redaction_policy_ids?.length ?? 0}</Descriptions.Item>
-            <Descriptions.Item label="Agent">{policyPreviewResult?.agent?.name}</Descriptions.Item>
-            <Descriptions.Item label="Tool">{policyPreviewResult?.tool?.name}</Descriptions.Item>
+            <Descriptions.Item label={t("Decision")}>{policyPreviewResult?.decision?.action}</Descriptions.Item>
+            <Descriptions.Item label={t("Matched Policy")}>{policyPreviewResult?.decision?.matched_policy_name || "-"}</Descriptions.Item>
+            <Descriptions.Item label={t("Reason")}>{policyPreviewResult?.decision?.reason || "-"}</Descriptions.Item>
+            <Descriptions.Item label={t("Matched Policies")}>{policyPreviewResult?.decision?.matched_policies?.length ?? 0}</Descriptions.Item>
+            <Descriptions.Item label={t("Redaction Policies")}>{policyPreviewResult?.decision?.redaction_policy_ids?.length ?? 0}</Descriptions.Item>
+            <Descriptions.Item label={t("Agent")}>{policyPreviewResult?.agent?.name}</Descriptions.Item>
+            <Descriptions.Item label={t("Tool")}>{policyPreviewResult?.tool?.name}</Descriptions.Item>
           </Descriptions>
           <div className="detail-json-grid">
             <div>
-              <Text strong>Explanation</Text>
+              <Text strong>{t("Explanation")}</Text>
               <JsonBlock value={policyPreviewResult?.decision?.explanation} />
             </div>
             <div>
-              <Text strong>Matched Policies</Text>
+              <Text strong>{t("Matched Policies")}</Text>
               <JsonBlock value={policyPreviewResult?.decision?.matched_policies} />
             </div>
           </div>
           <JsonBlock value={policyPreviewResult?.decision} />
         </Modal>
 
-        <Modal title="Approval Details" open={Boolean(selectedApproval)} onCancel={() => setSelectedApproval(null)} footer={null} width={820}>
+        <Modal title={t("Approval Details")} open={Boolean(selectedApproval)} onCancel={() => setSelectedApproval(null)} footer={null} width={820}>
           <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label="ID">{selectedApproval?.id}</Descriptions.Item>
-            <Descriptions.Item label="Invocation">{selectedApproval?.invocation_id}</Descriptions.Item>
-            <Descriptions.Item label="Status">
-              {selectedApproval ? <StatusTag status={selectedApproval.status} /> : null}
+            <Descriptions.Item label={t("ID")}>{selectedApproval?.id}</Descriptions.Item>
+            <Descriptions.Item label={t("Invocation")}>{selectedApproval?.invocation_id}</Descriptions.Item>
+            <Descriptions.Item label={t("Status")}>
+              {selectedApproval ? <StatusTag status={selectedApproval.status} t={t} /> : null}
             </Descriptions.Item>
-            <Descriptions.Item label="Approver">{selectedApproval?.approver || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Reason">{selectedApproval?.reason || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Comment">{selectedApproval?.comment || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Created">
+            <Descriptions.Item label={t("Approver")}>{selectedApproval?.approver || "-"}</Descriptions.Item>
+            <Descriptions.Item label={t("Reason")}>{selectedApproval?.reason || "-"}</Descriptions.Item>
+            <Descriptions.Item label={t("Comment")}>{selectedApproval?.comment || "-"}</Descriptions.Item>
+            <Descriptions.Item label={t("Created")}>
               {selectedApproval?.created_at ? new Date(selectedApproval.created_at).toLocaleString() : "-"}
             </Descriptions.Item>
-            <Descriptions.Item label="Updated">
+            <Descriptions.Item label={t("Updated")}>
               {selectedApproval?.updated_at ? new Date(selectedApproval.updated_at).toLocaleString() : "-"}
             </Descriptions.Item>
           </Descriptions>
         </Modal>
 
-        <Modal title="Policy Details" open={Boolean(selectedPolicy)} onCancel={() => setSelectedPolicy(null)} footer={null} width={860}>
+        <Modal title={t("Policy Details")} open={Boolean(selectedPolicy)} onCancel={() => setSelectedPolicy(null)} footer={null} width={860}>
           <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label="ID">{selectedPolicy?.id}</Descriptions.Item>
-            <Descriptions.Item label="Name">{selectedPolicy?.name}</Descriptions.Item>
-            <Descriptions.Item label="Action">
+            <Descriptions.Item label={t("ID")}>{selectedPolicy?.id}</Descriptions.Item>
+            <Descriptions.Item label={t("Name")}>{selectedPolicy?.name}</Descriptions.Item>
+            <Descriptions.Item label={t("Action")}>
               {selectedPolicy?.action ? (
                 <Tag color={selectedPolicy.action === "deny" ? "red" : "green"}>{selectedPolicy.action}</Tag>
               ) : null}
             </Descriptions.Item>
-            <Descriptions.Item label="Priority">{selectedPolicy?.priority}</Descriptions.Item>
-            <Descriptions.Item label="Enabled">
-              {selectedPolicy ? <Tag color={selectedPolicy.enabled ? "green" : "default"}>{String(selectedPolicy.enabled)}</Tag> : null}
+            <Descriptions.Item label={t("Priority")}>{selectedPolicy?.priority}</Descriptions.Item>
+            <Descriptions.Item label={t("Enabled")}>
+              {selectedPolicy ? <Tag color={selectedPolicy.enabled ? "green" : "default"}>{selectedPolicy.enabled ? t("Enabled") : t("Disabled")}</Tag> : null}
             </Descriptions.Item>
-            <Descriptions.Item label="Description">{selectedPolicy?.description || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Created">
+            <Descriptions.Item label={t("Description")}>{selectedPolicy?.description || "-"}</Descriptions.Item>
+            <Descriptions.Item label={t("Created")}>
               {selectedPolicy?.created_at ? new Date(selectedPolicy.created_at).toLocaleString() : "-"}
             </Descriptions.Item>
-            <Descriptions.Item label="Updated">
+            <Descriptions.Item label={t("Updated")}>
               {selectedPolicy?.updated_at ? new Date(selectedPolicy.updated_at).toLocaleString() : "-"}
             </Descriptions.Item>
           </Descriptions>
           <div className="detail-json-grid">
             <div>
-              <Text strong>Condition</Text>
+              <Text strong>{t("Condition")}</Text>
               <JsonBlock value={selectedPolicy?.condition_json} />
             </div>
             <div>
-              <Text strong>Scope</Text>
+              <Text strong>{t("Scope")}</Text>
               <JsonBlock value={selectedPolicy?.scope} />
             </div>
           </div>
         </Modal>
 
-        <Modal title="Invocation Details" open={Boolean(selectedInvocation)} onCancel={() => setSelectedInvocation(null)} footer={null} width={920}>
+        <Modal title={t("Invocation Details")} open={Boolean(selectedInvocation)} onCancel={() => setSelectedInvocation(null)} footer={null} width={920}>
           <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label="ID">{selectedInvocation?.id}</Descriptions.Item>
-            <Descriptions.Item label="Agent">{selectedInvocation?.agent_name}</Descriptions.Item>
-            <Descriptions.Item label="Tool">{selectedInvocation?.tool_name}</Descriptions.Item>
-            <Descriptions.Item label="Status">
-              {selectedInvocation ? <StatusTag status={selectedInvocation.status} /> : null}
+            <Descriptions.Item label={t("ID")}>{selectedInvocation?.id}</Descriptions.Item>
+            <Descriptions.Item label={t("Agent")}>{selectedInvocation?.agent_name}</Descriptions.Item>
+            <Descriptions.Item label={t("Tool")}>{selectedInvocation?.tool_name}</Descriptions.Item>
+            <Descriptions.Item label={t("Status")}>
+              {selectedInvocation ? <StatusTag status={selectedInvocation.status} t={t} /> : null}
             </Descriptions.Item>
-            <Descriptions.Item label="Latency">{selectedInvocation?.latency_ms ?? 0} ms</Descriptions.Item>
-            <Descriptions.Item label="Matched Policy">{selectedInvocation?.matched_policy_id || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Approval">{selectedInvocation?.approval_id || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Error">{selectedInvocation?.error_message || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Created">
+            <Descriptions.Item label={t("Latency")}>{selectedInvocation?.latency_ms ?? 0} ms</Descriptions.Item>
+            <Descriptions.Item label={t("Matched Policy")}>{selectedInvocation?.matched_policy_id || "-"}</Descriptions.Item>
+            <Descriptions.Item label={t("Approval")}>{selectedInvocation?.approval_id || "-"}</Descriptions.Item>
+            <Descriptions.Item label={t("Error")}>{selectedInvocation?.error_message || "-"}</Descriptions.Item>
+            <Descriptions.Item label={t("Created")}>
               {selectedInvocation?.created_at ? new Date(selectedInvocation.created_at).toLocaleString() : "-"}
             </Descriptions.Item>
           </Descriptions>
           <div className="detail-json-grid">
             <div>
-              <Text strong>Request</Text>
+              <Text strong>{t("Request")}</Text>
               <JsonBlock value={selectedInvocation?.request_args} />
             </div>
             <div>
-              <Text strong>Redacted Response</Text>
+              <Text strong>{t("Redacted Response")}</Text>
               <JsonBlock value={selectedInvocation?.response_data_redacted} />
             </div>
             <div>
-              <Text strong>Policy Decision</Text>
+              <Text strong>{t("Policy Decision")}</Text>
               <JsonBlock value={selectedInvocation?.policy_decision} />
             </div>
           </div>
         </Modal>
 
-        <Modal title="Audit Log Details" open={Boolean(selectedAuditLog)} onCancel={() => setSelectedAuditLog(null)} footer={null} width={860}>
+        <Modal title={t("Audit Log Details")} open={Boolean(selectedAuditLog)} onCancel={() => setSelectedAuditLog(null)} footer={null} width={860}>
           <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label="ID">{selectedAuditLog?.id}</Descriptions.Item>
-            <Descriptions.Item label="Event">{selectedAuditLog?.event_type}</Descriptions.Item>
-            <Descriptions.Item label="Actor">
+            <Descriptions.Item label={t("ID")}>{selectedAuditLog?.id}</Descriptions.Item>
+            <Descriptions.Item label={t("Event")}>{selectedAuditLog?.event_type}</Descriptions.Item>
+            <Descriptions.Item label={t("Actor")}>
               {[selectedAuditLog?.actor_type, selectedAuditLog?.actor_id].filter(Boolean).join(" / ") || "-"}
             </Descriptions.Item>
-            <Descriptions.Item label="Resource">
+            <Descriptions.Item label={t("Resource")}>
               {[selectedAuditLog?.resource_type, selectedAuditLog?.resource_id].filter(Boolean).join(" / ") || "-"}
             </Descriptions.Item>
-            <Descriptions.Item label="Created">
+            <Descriptions.Item label={t("Created")}>
               {selectedAuditLog?.created_at ? new Date(selectedAuditLog.created_at).toLocaleString() : "-"}
             </Descriptions.Item>
           </Descriptions>
           <JsonBlock value={selectedAuditLog?.detail_json} />
         </Modal>
       </Content>
-    </Layout>
+      </Layout>
+    </ConfigProvider>
   );
 }

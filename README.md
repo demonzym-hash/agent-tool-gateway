@@ -171,7 +171,6 @@ npm run typescript-sdk:local
 ## More Languages
 
 - [简体中文](./docs/README.zh-CN.md)
-- [日本語](./docs/README.ja.md)
 - [Roadmap](./docs/roadmap.md)
 
 ## MVP Limits
