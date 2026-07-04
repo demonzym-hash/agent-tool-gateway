@@ -128,6 +128,17 @@ const auditLogs = await adminClient.listAuditLogs({
 const invocation = await adminClient.getInvocation(invocations.invocations[0].id);
 const auditLog = await adminClient.getAuditLog(auditLogs.audit_logs[0].id);
 console.log(invocation.invocation, auditLog.audit_log);
+
+const evidence = await adminClient.exportEvidence({
+  invocationToolId: "tool_id",
+  invocationStatus: "success",
+  auditEventType: "tool.invoke.succeeded",
+  policyAction: "approve",
+  from: "2026-06-01T00:00:00Z",
+  to: "2026-07-01T00:00:00Z",
+  limit: 100,
+});
+console.log(evidence.evidence.manifest);
 ```
 
 ## Example

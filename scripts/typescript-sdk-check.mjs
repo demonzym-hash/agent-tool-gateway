@@ -289,6 +289,38 @@ assert(restAuditLogDetail.audit_log?.id === restResult.audit_id, "TypeScript SDK
 assert(restAuditLogDetail.audit_log?.event_type === "tool.invoke.succeeded", "TypeScript SDK audit log detail event type was not tool.invoke.succeeded");
 console.log(`[ok] TypeScript SDK REST example, invocation ${restResult.invocation_id}`);
 
+const evidence = await previewClient.exportEvidence({
+  invocationToolId: tool.tool.id,
+  invocationStatus: "success",
+  auditEventType: "tool.invoke.succeeded",
+  policyAction: "approve",
+  from: evidenceFrom,
+  to: evidenceTo,
+  limit: 50,
+});
+assert(evidence.evidence?.manifest?.format === "atg.evidence.export.v1", "TypeScript SDK evidence export format was wrong");
+assert(
+  evidence.evidence?.datasets?.invocations?.some((item) => item.id === restResult.invocation_id),
+  "TypeScript SDK evidence export did not include REST invocation",
+);
+assert(
+  evidence.evidence?.datasets?.audit_logs?.some((item) => item.id === restResult.audit_id),
+  "TypeScript SDK evidence export did not include REST audit log",
+);
+assert(
+  evidence.evidence?.datasets?.policies?.some((item) => item.id === approvalPolicy.policy.id),
+  "TypeScript SDK evidence export did not include approval policy snapshot",
+);
+assert(
+  /^[0-9a-f]{64}$/.test(evidence.evidence?.manifest?.dataset_hashes?.invocations_sha256 || ""),
+  "TypeScript SDK evidence export did not include invocation hash",
+);
+assert(
+  /^[0-9a-f]{64}$/.test(evidence.evidence?.manifest?.manifest_sha256 || ""),
+  "TypeScript SDK evidence export did not include manifest hash",
+);
+console.log("[ok] TypeScript SDK evidence export");
+
 const mcpResult = runTypescriptExample(agent.api_key, { ATG_USE_MCP: "1" });
 assert(mcpResult.invocation_id, "MCP TypeScript SDK result did not include invocation_id");
 const mcpInvocations = await previewClient.listInvocations({

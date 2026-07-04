@@ -141,6 +141,17 @@ audit_logs = admin_client.list_audit_logs(
 invocation = admin_client.get_invocation(invocations["invocations"][0]["id"])
 audit_log = admin_client.get_audit_log(audit_logs["audit_logs"][0]["id"])
 print(invocation["invocation"], audit_log["audit_log"])
+
+evidence = admin_client.export_evidence(
+    invocation_tool_id="tool_id",
+    invocation_status="success",
+    audit_event_type="tool.invoke.succeeded",
+    policy_action="approve",
+    from_time="2026-06-01T00:00:00Z",
+    to_time="2026-07-01T00:00:00Z",
+    limit=100,
+)
+print(evidence["evidence"]["manifest"])
 ```
 
 ## Example

@@ -475,6 +475,44 @@ print(json.dumps(client.get_audit_log("${restResult.audit_id}")))
   assert(restAuditLogDetail.audit_log?.event_type === "tool.invoke.succeeded", "Python SDK audit log detail event type was not tool.invoke.succeeded");
   console.log(`[ok] Python SDK REST example, invocation ${restResult.invocation_id}`);
 
+  const evidence = runPythonSnippet(`
+import json
+from atg_sdk import AtgClient
+
+client = AtgClient(base_url="${baseUrl}", admin_token="${adminToken}")
+print(json.dumps(client.export_evidence(
+    invocation_tool_id="${tool.tool.id}",
+    invocation_status="success",
+    audit_event_type="tool.invoke.succeeded",
+    policy_action="approve",
+    from_time="${evidenceFrom}",
+    to_time="${evidenceTo}",
+    limit=50,
+)))
+`);
+  assert(evidence.evidence?.manifest?.format === "atg.evidence.export.v1", "Python SDK evidence export format was wrong");
+  assert(
+    evidence.evidence?.datasets?.invocations?.some((item) => item.id === restResult.invocation_id),
+    "Python SDK evidence export did not include REST invocation",
+  );
+  assert(
+    evidence.evidence?.datasets?.audit_logs?.some((item) => item.id === restResult.audit_id),
+    "Python SDK evidence export did not include REST audit log",
+  );
+  assert(
+    evidence.evidence?.datasets?.policies?.some((item) => item.id === approvalPolicy.policy.id),
+    "Python SDK evidence export did not include approval policy snapshot",
+  );
+  assert(
+    /^[0-9a-f]{64}$/.test(evidence.evidence?.manifest?.dataset_hashes?.invocations_sha256 || ""),
+    "Python SDK evidence export did not include invocation hash",
+  );
+  assert(
+    /^[0-9a-f]{64}$/.test(evidence.evidence?.manifest?.manifest_sha256 || ""),
+    "Python SDK evidence export did not include manifest hash",
+  );
+  console.log("[ok] Python SDK evidence export");
+
   const mcpResult = runPythonExample({ ATG_USE_MCP: "1" });
   assert(mcpResult.invocation_id, "MCP Python SDK result did not include invocation_id");
   const mcpInvocations = runPythonSnippet(`

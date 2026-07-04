@@ -281,6 +281,51 @@ class AtgClient:
         path = f"/api/v1/audit-logs?{query}" if query else "/api/v1/audit-logs"
         return self._request(path, method="GET", headers=self._admin_headers())
 
+    def export_evidence(
+        self,
+        *,
+        invocation_agent_id: str | None = None,
+        invocation_tool_id: str | None = None,
+        invocation_status: str | None = None,
+        approval_status: str | None = None,
+        audit_event_type: str | None = None,
+        audit_actor_type: str | None = None,
+        audit_resource_type: str | None = None,
+        policy_action: str | None = None,
+        policy_enabled: bool | None = None,
+        from_time: str | None = None,
+        to_time: str | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, str] = {}
+        if invocation_agent_id:
+            params["invocation_agent_id"] = invocation_agent_id
+        if invocation_tool_id:
+            params["invocation_tool_id"] = invocation_tool_id
+        if invocation_status:
+            params["invocation_status"] = invocation_status
+        if approval_status:
+            params["approval_status"] = approval_status
+        if audit_event_type:
+            params["audit_event_type"] = audit_event_type
+        if audit_actor_type:
+            params["audit_actor_type"] = audit_actor_type
+        if audit_resource_type:
+            params["audit_resource_type"] = audit_resource_type
+        if policy_action:
+            params["policy_action"] = policy_action
+        if policy_enabled is not None:
+            params["policy_enabled"] = str(policy_enabled).lower()
+        if from_time:
+            params["from"] = from_time
+        if to_time:
+            params["to"] = to_time
+        if limit is not None:
+            params["limit"] = str(limit)
+        query = urllib.parse.urlencode(params)
+        path = f"/api/v1/evidence/export?{query}" if query else "/api/v1/evidence/export"
+        return self._request(path, method="GET", headers=self._admin_headers())
+
     def _rpc(self, method: str, params: dict[str, Any], *, auth: bool = False) -> dict[str, Any]:
         payload = {
             "jsonrpc": "2.0",

@@ -121,10 +121,12 @@ Focus:
 Focus:
 
 - Declare the public core ready for general availability, not just developer preview.
-- Stabilize the core REST, MCP, OpenAPI, Python SDK, and TypeScript SDK contracts for normal production evaluation.
-- Document the compatibility policy for future `v1.x` releases, including how breaking changes will be handled.
+- Align the core REST API, MCP surface, OpenAPI spec, Python SDK, and TypeScript SDK so early adopters can integrate without guessing.
+- Fill practical SDK/API coverage gaps around the core governance loop, including policy preview, approval decisions, invocation/audit review, and evidence export.
+- Keep README, OpenAPI, SDK examples, and demo scripts consistent with actual server behavior.
+- Document a lightweight compatibility policy for future `v1.x` releases, including how breaking changes will be handled.
 - Validate the full governance path across Agent identity, Tool invocation, policy decisions, approval, redaction, credential isolation, evidence export, and audit logs.
-- Make deployment, verification, upgrade, and secret-management guidance clear enough for single-server public-core evaluation.
+- Keep deployment, verification, and secret-management guidance clear enough for single-server public-core evaluation.
 - Keep enterprise IAM, multi-tenancy, HA/SLA operations, external KMS/Vault/SIEM, and managed private deployment in the commercial/enterprise track.
 
 ## v1.x Labs And Exploration

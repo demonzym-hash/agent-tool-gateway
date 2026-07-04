@@ -270,6 +270,40 @@ export class AtgClient {
     });
   }
 
+  async exportEvidence({
+    invocationAgentId = "",
+    invocationToolId = "",
+    invocationStatus = "",
+    approvalStatus = "",
+    auditEventType = "",
+    auditActorType = "",
+    auditResourceType = "",
+    policyAction = "",
+    policyEnabled = null,
+    from = "",
+    to = "",
+    limit = null,
+  } = {}) {
+    const params = new URLSearchParams();
+    if (invocationAgentId) params.set("invocation_agent_id", invocationAgentId);
+    if (invocationToolId) params.set("invocation_tool_id", invocationToolId);
+    if (invocationStatus) params.set("invocation_status", invocationStatus);
+    if (approvalStatus) params.set("approval_status", approvalStatus);
+    if (auditEventType) params.set("audit_event_type", auditEventType);
+    if (auditActorType) params.set("audit_actor_type", auditActorType);
+    if (auditResourceType) params.set("audit_resource_type", auditResourceType);
+    if (policyAction) params.set("policy_action", policyAction);
+    if (policyEnabled !== null && policyEnabled !== undefined) params.set("policy_enabled", String(policyEnabled));
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (limit !== null && limit !== undefined) params.set("limit", String(limit));
+    const query = params.toString();
+    return this.#request(`/api/v1/evidence/export${query ? `?${query}` : ""}`, {
+      method: "GET",
+      headers: this.#adminHeaders(),
+    });
+  }
+
   async #rpc(method, params, { auth = false } = {}) {
     const response = await this.#request("/mcp", {
       payload: {

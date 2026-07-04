@@ -204,6 +204,42 @@ export interface ListAuditLogsInput {
   limit?: number | null;
 }
 
+export interface ExportEvidenceInput {
+  invocationAgentId?: string;
+  invocationToolId?: string;
+  invocationStatus?: string;
+  approvalStatus?: string;
+  auditEventType?: string;
+  auditActorType?: string;
+  auditResourceType?: string;
+  policyAction?: PolicyAction | string;
+  policyEnabled?: boolean | null;
+  from?: string;
+  to?: string;
+  limit?: number | null;
+}
+
+export interface EvidenceExportManifest {
+  generated_at: string;
+  format: "atg.evidence.export.v1";
+  filters: Record<string, JsonValue>;
+  counts: Record<string, number>;
+  summaries?: Record<string, JsonObject>;
+  dataset_hashes: Record<string, string>;
+  manifest_sha256: string;
+  [key: string]: JsonValue | JsonObject | Record<string, number> | Record<string, string> | undefined;
+}
+
+export interface EvidenceExport {
+  manifest: EvidenceExportManifest;
+  datasets: {
+    invocations: Invocation[];
+    approvals: Approval[];
+    audit_logs: AuditLog[];
+    policies: Policy[];
+  };
+}
+
 export class AtgError extends Error {
   statusCode: number | null;
   payload: unknown;
@@ -256,4 +292,5 @@ export class AtgClient {
   listInvocations(input?: ListInvocationsInput): Promise<{ invocations: Invocation[] }>;
   getAuditLog(auditLogId: string): Promise<{ audit_log: AuditLog }>;
   listAuditLogs(input?: ListAuditLogsInput): Promise<{ audit_logs: AuditLog[] }>;
+  exportEvidence(input?: ExportEvidenceInput): Promise<{ evidence: EvidenceExport }>;
 }

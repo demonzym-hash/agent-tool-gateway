@@ -1,4 +1,4 @@
-import { AtgClient, AtgError, type PolicyAction } from "../src/index.js";
+import { AtgClient, AtgError, type EvidenceExport, type PolicyAction } from "../src/index.js";
 
 const adminClient = new AtgClient({ baseUrl: "http://localhost:8080", adminToken: "local-admin-secret", timeoutMs: 5000 });
 const invokeClient = new AtgClient({ apiKey: "atg_example" });
@@ -31,6 +31,15 @@ await adminClient.getPolicy(policy.policy.id);
 await adminClient.listApprovals({ status: "pending", from: "2026-06-01T00:00:00Z", limit: 20 });
 await adminClient.listInvocations({ agentId: agent.agent.id, toolId: tool.tool.id, status: "success", limit: 20 });
 await adminClient.listAuditLogs({ eventType: "tool.invoke.succeeded", actorType: "agent", resourceType: "tool", limit: 20 });
+const evidenceResult = await adminClient.exportEvidence({
+  invocationToolId: tool.tool.id,
+  invocationStatus: "success",
+  policyAction: action,
+  policyEnabled: true,
+  limit: 20,
+});
+const evidence: EvidenceExport = evidenceResult.evidence;
+console.log(evidence.manifest.format);
 await adminClient.getApproval("approval_id");
 await adminClient.getInvocation("invocation_id");
 await adminClient.getAuditLog("audit_id");
