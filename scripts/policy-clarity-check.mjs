@@ -155,6 +155,9 @@ assert(preview.data.decision?.matched_policies?.length === 2, "Preview did not i
 assert(preview.data.decision?.redaction_policy_ids?.includes(redactPolicy.id), "Preview did not include redaction policy id");
 assert(preview.data.decision?.evaluation?.mode === "composed", "Preview did not include composed evaluation metadata");
 assert(Array.isArray(preview.data.decision?.evaluation?.evaluated_policies), "Preview did not include evaluated policies");
+assert(preview.data.decision?.decision_trace?.[0]?.matched_policy_count === 2, "Preview did not include decision trace match count");
+assert(preview.data.decision?.decision_trace?.[1]?.outcome === "approve", "Preview decision trace did not explain approve precedence");
+assert(preview.data.decision?.decision_trace?.[2]?.outcome === "apply", "Preview decision trace did not explain redaction application");
 console.log("[ok] policy preview explains approve plus redact composition");
 
 const pending = await invoke(

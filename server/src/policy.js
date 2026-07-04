@@ -97,6 +97,16 @@ function mergeRedactionRules(policies) {
   };
 }
 
+function policyActionCounts(policies) {
+  return policies.reduce(
+    (counts, policy) => ({
+      ...counts,
+      [policy.action]: (counts[policy.action] || 0) + 1,
+    }),
+    { allow: 0, deny: 0, approve: 0, redact: 0 },
+  );
+}
+
 function pickPrimaryPolicy({ denyPolicies, approvePolicies, allowPolicies, redactPolicies }) {
   if (denyPolicies.length) return denyPolicies[0];
   if (approvePolicies.length) return approvePolicies[0];
@@ -118,6 +128,60 @@ function composeReason({ action, primaryPolicy, redactPolicies }) {
   const additionalRedactions = redactPolicies.filter((policy) => policy.id !== primaryPolicy.id);
   if (action === "deny" || !additionalRedactions.length) return base;
   return `${base}; redaction also applies: ${additionalRedactions.map((policy) => policy.name).join(", ")}`;
+}
+
+function buildDecisionTrace({ action, matchedPolicies, primaryPolicy, redactPolicies }) {
+  if (!matchedPolicies.length) {
+    return [
+      {
+        step: "match",
+        outcome: "no_match",
+        message: "No enabled policy matched the agent, tool, and input.",
+      },
+      {
+        step: "decision",
+        outcome: "allow",
+        message: "Default allow decision applied.",
+      },
+    ];
+  }
+
+  const trace = [
+    {
+      step: "match",
+      outcome: "matched",
+      matched_policy_count: matchedPolicies.length,
+      action_counts: policyActionCounts(matchedPolicies),
+      policy_ids: matchedPolicies.map((policy) => policy.id),
+      message: `Matched ${matchedPolicies.length} enabled ${matchedPolicies.length === 1 ? "policy" : "policies"}.`,
+    },
+    {
+      step: "precedence",
+      outcome: action,
+      selected_policy_id: primaryPolicy?.id || null,
+      selected_policy_name: primaryPolicy?.name || null,
+      precedence: ["deny", "approve", "allow", "redact"],
+      message:
+        action === "deny"
+          ? "Deny policies take precedence over approve, allow, and redact."
+          : action === "approve"
+            ? "Approval policies take precedence over allow. Redaction policies are applied after approval."
+            : action === "allow"
+              ? "Allow policies permit execution. Redaction policies still apply to the response."
+              : "Only redaction policies matched, so execution is allowed with response redaction.",
+    },
+  ];
+
+  if (redactPolicies.length) {
+    trace.push({
+      step: "redaction",
+      outcome: "apply",
+      policy_ids: redactPolicies.map((policy) => policy.id),
+      message: "Matched redaction policies will be applied to the Tool response before return and audit storage.",
+    });
+  }
+
+  return trace;
 }
 
 export function evaluatePolicy({ agent, tool, input, policies = [] }) {
@@ -146,6 +210,12 @@ export function evaluatePolicy({ agent, tool, input, policies = [] }) {
       matched_policies: [],
       redaction_policy_ids: [],
       explanation: ["No enabled policy matched the agent, tool, and input. The default decision is allow."],
+      decision_trace: buildDecisionTrace({
+        action: "allow",
+        matchedPolicies: [],
+        primaryPolicy: null,
+        redactPolicies: [],
+      }),
       evaluation: {
         mode: "composed",
         precedence: ["deny", "approve", "allow", "redact"],
@@ -161,6 +231,7 @@ export function evaluatePolicy({ agent, tool, input, policies = [] }) {
   const primaryPolicy = pickPrimaryPolicy({ denyPolicies, approvePolicies, allowPolicies, redactPolicies });
   const redaction = mergeRedactionRules(redactPolicies);
   const action = denyPolicies.length ? "deny" : approvePolicies.length ? "approve" : allowPolicies.length ? "allow" : "redact";
+  const decisionTrace = buildDecisionTrace({ action, matchedPolicies, primaryPolicy, redactPolicies });
   const explanation = [
     `Matched ${matchedPolicies.length} enabled ${matchedPolicies.length === 1 ? "policy" : "policies"}.`,
     denyPolicies.length
@@ -181,6 +252,7 @@ export function evaluatePolicy({ agent, tool, input, policies = [] }) {
     redaction_policy_ids: redactPolicies.map((policy) => policy.id),
     ...(Object.keys(redaction).length ? { redaction } : {}),
     explanation,
+    decision_trace: decisionTrace,
     evaluation: {
       mode: "composed",
       precedence: ["deny", "approve", "allow", "redact"],

@@ -15,6 +15,10 @@ describe("policy evaluation", () => {
     assert.equal(decision.matched_policy_id, null);
     assert.deepEqual(decision.matched_policies, []);
     assert.deepEqual(decision.redaction_policy_ids, []);
+    assert.deepEqual(
+      decision.decision_trace.map((step) => step.outcome),
+      ["no_match", "allow"],
+    );
     assert.equal(decision.evaluation.mode, "composed");
   });
 
@@ -48,6 +52,10 @@ describe("policy evaluation", () => {
       decision.matched_policies.map((policy) => policy.id),
       ["policy_late", "policy_deny"],
     );
+    assert.equal(decision.decision_trace[0].matched_policy_count, 2);
+    assert.deepEqual(decision.decision_trace[0].action_counts, { allow: 1, deny: 1, approve: 0, redact: 0 });
+    assert.equal(decision.decision_trace[1].outcome, "deny");
+    assert.equal(decision.decision_trace[1].selected_policy_id, "policy_deny");
     assert.match(decision.explanation.join(" "), /Deny policies take precedence/);
   });
 
@@ -71,6 +79,8 @@ describe("policy evaluation", () => {
     assert.equal(decision.reason, "Approval required by policy: Approve large refunds");
     assert.equal(decision.matched_policy_id, "policy_approve");
     assert.equal(decision.matched_policy_name, "Approve large refunds");
+    assert.equal(decision.decision_trace[1].outcome, "approve");
+    assert.equal(decision.decision_trace[1].selected_policy_name, "Approve large refunds");
   });
 
   it("matches nested argument string conditions", () => {
@@ -147,6 +157,9 @@ describe("policy evaluation", () => {
     assert.equal(decision.reason, "Redaction policy matched: Redact account details");
     assert.equal(decision.matched_policy_id, "policy_redact");
     assert.equal(decision.matched_policy_name, "Redact account details");
+    assert.equal(decision.decision_trace[1].outcome, "redact");
+    assert.equal(decision.decision_trace[2].outcome, "apply");
+    assert.deepEqual(decision.decision_trace[2].policy_ids, ["policy_redact"]);
     assert.deepEqual(decision.redaction, {
       fields: ["account_number"],
       patterns: [{ pattern: "TCK-\\d+", replacement: "TCK-***" }],
@@ -182,6 +195,11 @@ describe("policy evaluation", () => {
     assert.equal(decision.matched_policy_id, "policy_approve");
     assert.deepEqual(decision.redaction, { fields: ["email"] });
     assert.deepEqual(decision.redaction_policy_ids, ["policy_redact"]);
+    assert.deepEqual(
+      decision.decision_trace.map((step) => step.step),
+      ["match", "precedence", "redaction"],
+    );
+    assert.equal(decision.decision_trace[1].outcome, "approve");
     assert.match(decision.reason, /redaction also applies/);
   });
 
