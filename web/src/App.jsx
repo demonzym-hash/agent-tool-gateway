@@ -13,6 +13,7 @@ import {
   message,
   Modal,
   Popconfirm,
+  Radio,
   Row,
   Select,
   Space,
@@ -21,6 +22,7 @@ import {
   Tabs,
   Tag,
   Typography,
+  Upload,
 } from "antd";
 import {
   ApiOutlined,
@@ -35,6 +37,7 @@ import {
   SafetyCertificateOutlined,
   SyncOutlined,
   ToolOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
@@ -193,6 +196,28 @@ const zhText = {
   Language: "语言",
   Chinese: "中文",
   English: "English",
+  "Import OpenAPI": "导入 OpenAPI",
+  "OpenAPI Source": "OpenAPI 来源",
+  URL: "URL",
+  File: "文件",
+  Paste: "粘贴",
+  "OpenAPI URL": "OpenAPI URL",
+  "Base URL override": "Base URL 覆盖",
+  "OpenAPI Content": "OpenAPI 内容",
+  "Upload OpenAPI file": "上传 OpenAPI 文件",
+  "Preview Operations": "预览接口",
+  Operation: "接口",
+  "Create Imported Tool": "创建导入的工具",
+  "Imported Tool Preview": "导入工具预览",
+  Operations: "接口",
+  Warnings: "提示",
+  "OpenAPI parsed": "OpenAPI 已解析",
+  "OpenAPI file loaded": "OpenAPI 文件已读取",
+  "Import Selected": "导入选中项",
+  "Import Results": "导入结果",
+  "Selected Operations": "已选接口",
+  "Select operations first": "请先选择要导入的接口",
+  "Batch Defaults": "批量默认值",
   "Export Evidence": "导出证据",
   "Evidence exported": "证据已导出",
 };
@@ -336,8 +361,18 @@ export default function App() {
   const [selectedInvocation, setSelectedInvocation] = useState(null);
   const [selectedAuditLog, setSelectedAuditLog] = useState(null);
   const [selectedPolicy, setSelectedPolicy] = useState(null);
+  const [openApiImportOpen, setOpenApiImportOpen] = useState(false);
+  const [openApiSourceType, setOpenApiSourceType] = useState("url");
+  const [openApiImportLoading, setOpenApiImportLoading] = useState(false);
+  const [openApiPreview, setOpenApiPreview] = useState(null);
+  const [selectedOpenApiOperation, setSelectedOpenApiOperation] = useState("");
+  const [selectedOpenApiOperations, setSelectedOpenApiOperations] = useState([]);
+  const [openApiImportResults, setOpenApiImportResults] = useState(null);
   const [agentForm] = Form.useForm();
   const [toolForm] = Form.useForm();
+  const [openApiForm] = Form.useForm();
+  const [openApiToolForm] = Form.useForm();
+  const [openApiBatchForm] = Form.useForm();
   const [policyForm] = Form.useForm();
   const [policyPreviewForm] = Form.useForm();
   const t = useMemo(() => (text) => translate(language, text), [language]);
@@ -346,6 +381,10 @@ export default function App() {
   const activeTools = useMemo(() => tools.filter((tool) => tool.status === "active"), [tools]);
   const agentOptions = useMemo(() => agents.map((agent) => ({ value: agent.id, label: agent.name })), [agents]);
   const toolOptions = useMemo(() => tools.map((tool) => ({ value: tool.id, label: tool.name })), [tools]);
+  const selectedOpenApiOperationDetail = useMemo(
+    () => openApiPreview?.operations?.find((operation) => operation.operation_key === selectedOpenApiOperation) || null,
+    [openApiPreview, selectedOpenApiOperation],
+  );
   const dashboardStats = useMemo(() => {
     const byStatus = invocations.reduce((acc, invocation) => {
       acc[invocation.status] = (acc[invocation.status] || 0) + 1;
@@ -513,6 +552,7 @@ export default function App() {
         body: JSON.stringify(values),
       });
       setOneTimeKey(data.api_key);
+      setInvokeKey(data.api_key);
       agentForm.resetFields();
       message.success(t("Agent created"));
       await refresh();
@@ -527,6 +567,7 @@ export default function App() {
         method: "POST",
       });
       setOneTimeKey(data.api_key);
+      setInvokeKey(data.api_key);
       message.success(t("Agent key rotated"));
       await refresh();
     } catch (error) {
@@ -559,6 +600,104 @@ export default function App() {
       });
       toolForm.resetFields();
       message.success(t("Tool created"));
+      await refresh();
+    } catch (error) {
+      message.error(error.message);
+    }
+  }
+
+  function fillOpenApiToolForm(operation) {
+    if (!operation?.tool) {
+      openApiToolForm.resetFields();
+      return;
+    }
+    openApiToolForm.setFieldsValue({
+      ...operation.tool,
+      headers: JSON.stringify(operation.tool.headers || {}, null, 2),
+      input_schema: JSON.stringify(operation.tool.input_schema || {}, null, 2),
+      output_schema: JSON.stringify(operation.tool.output_schema || {}, null, 2),
+    });
+  }
+
+  async function previewOpenApiImport(values) {
+    try {
+      setOpenApiImportLoading(true);
+      const data = await api("/api/v1/openapi/import/preview", {
+        method: "POST",
+        body: JSON.stringify({
+          source_type: values.source_type,
+          url: values.url,
+          content: values.content,
+          base_url: values.base_url || "",
+        }),
+      });
+      setOpenApiPreview(data);
+      const firstOperation = data.operations?.[0] || null;
+      setSelectedOpenApiOperation(firstOperation?.operation_key || "");
+      setSelectedOpenApiOperations(firstOperation?.operation_key ? [firstOperation.operation_key] : []);
+      setOpenApiImportResults(null);
+      fillOpenApiToolForm(firstOperation);
+      message.success(t("OpenAPI parsed"));
+    } catch (error) {
+      message.error(error.message);
+    } finally {
+      setOpenApiImportLoading(false);
+    }
+  }
+
+  async function createImportedOpenApiTool(values) {
+    try {
+      await api("/api/v1/tools", {
+        method: "POST",
+        body: JSON.stringify({
+          ...values,
+          timeout_ms: Number(values.timeout_ms),
+          headers: values.headers ? JSON.parse(values.headers) : {},
+          input_schema: values.input_schema ? JSON.parse(values.input_schema) : {},
+          output_schema: values.output_schema ? JSON.parse(values.output_schema) : {},
+        }),
+      });
+      message.success(t("Tool created"));
+      setOpenApiImportOpen(false);
+      setOpenApiPreview(null);
+      setSelectedOpenApiOperation("");
+      setSelectedOpenApiOperations([]);
+      setOpenApiImportResults(null);
+      openApiForm.resetFields();
+      openApiToolForm.resetFields();
+      openApiBatchForm.resetFields();
+      await refresh();
+    } catch (error) {
+      message.error(error.message);
+    }
+  }
+
+  async function importSelectedOpenApiTools(values) {
+    if (!selectedOpenApiOperations.length) {
+      message.warning(t("Select operations first"));
+      return;
+    }
+    try {
+      const sourceValues = openApiForm.getFieldsValue();
+      const data = await api("/api/v1/openapi/import/tools", {
+        method: "POST",
+        body: JSON.stringify({
+          source_type: sourceValues.source_type,
+          url: sourceValues.url,
+          content: sourceValues.content,
+          base_url: sourceValues.base_url || "",
+          defaults: {
+            owner: values.owner || "",
+            risk_level: values.risk_level || undefined,
+            timeout_ms: values.timeout_ms ? Number(values.timeout_ms) : undefined,
+            headers: values.headers ? JSON.parse(values.headers) : {},
+          },
+          operations: selectedOpenApiOperations.map((operation_key) => ({ operation_key })),
+        }),
+      });
+      setOpenApiImportResults(data.results || []);
+      const createdCount = (data.results || []).filter((result) => result.status === "created").length;
+      message.success(`${createdCount}/${selectedOpenApiOperations.length} ${t("Import Results")}`);
       await refresh();
     } catch (error) {
       message.error(error.message);
@@ -1065,7 +1204,14 @@ export default function App() {
               children: (
                 <Row gutter={[16, 16]}>
                   <Col xs={24} lg={8}>
-                    <Card title={t("Create HTTP Tool")}>
+                    <Card
+                      title={t("Create HTTP Tool")}
+                      extra={
+                        <Button size="small" icon={<UploadOutlined />} onClick={() => setOpenApiImportOpen(true)}>
+                          {t("Import OpenAPI")}
+                        </Button>
+                      }
+                    >
                       <Form form={toolForm} layout="vertical" onFinish={createTool}>
                         <Form.Item name="name" label={t("Name")} initialValue="refund_order" rules={[{ required: true }]}>
                           <Input />
@@ -1360,6 +1506,221 @@ export default function App() {
             },
           ]}
         />
+
+        <Modal
+          title={t("Import OpenAPI")}
+          open={openApiImportOpen}
+          onCancel={() => setOpenApiImportOpen(false)}
+          footer={null}
+          width={960}
+        >
+          <Form
+            form={openApiForm}
+            layout="vertical"
+            initialValues={{ source_type: "url" }}
+            onFinish={previewOpenApiImport}
+          >
+            <Form.Item name="source_type" label={t("OpenAPI Source")}>
+              <Radio.Group
+                onChange={(event) => {
+                  setOpenApiSourceType(event.target.value);
+                  setOpenApiPreview(null);
+                  setSelectedOpenApiOperation("");
+                  openApiToolForm.resetFields();
+                }}
+              >
+                <Radio.Button value="url">{t("URL")}</Radio.Button>
+                <Radio.Button value="content">
+                  {t("File")} / {t("Paste")}
+                </Radio.Button>
+              </Radio.Group>
+            </Form.Item>
+            {openApiSourceType === "url" ? (
+              <Form.Item name="url" label={t("OpenAPI URL")} rules={[{ required: true }]}>
+                <Input placeholder="https://example.com/openapi.json" />
+              </Form.Item>
+            ) : (
+              <>
+                <Upload
+                  accept=".json,.yaml,.yml,application/json,text/yaml,application/yaml"
+                  showUploadList={false}
+                  beforeUpload={async (file) => {
+                    const content = await file.text();
+                    openApiForm.setFieldsValue({ source_type: "content", content });
+                    setOpenApiSourceType("content");
+                    message.success(t("OpenAPI file loaded"));
+                    return false;
+                  }}
+                >
+                  <Button icon={<UploadOutlined />}>{t("Upload OpenAPI file")}</Button>
+                </Upload>
+                <Form.Item name="content" label={t("OpenAPI Content")} rules={[{ required: true }]} className="form-section">
+                  <Input.TextArea rows={8} placeholder="Paste OpenAPI JSON or YAML" />
+                </Form.Item>
+              </>
+            )}
+            <Form.Item name="base_url" label={t("Base URL override")}>
+              <Input placeholder="https://api.example.com" />
+            </Form.Item>
+            <Button icon={<EyeOutlined />} type="primary" htmlType="submit" loading={openApiImportLoading}>
+              {t("Preview Operations")}
+            </Button>
+          </Form>
+
+          {openApiPreview ? (
+            <div className="detail-section">
+              <Alert
+                type="success"
+                showIcon
+                message={`${openApiPreview.document?.title || "OpenAPI"} ${openApiPreview.document?.version || ""}`}
+                description={`${t("Operations")}: ${openApiPreview.operations?.length || 0}`}
+              />
+              <Table
+                rowKey="operation_key"
+                size="small"
+                pagination={{ pageSize: 5 }}
+                className="form-section"
+                rowSelection={{
+                  selectedRowKeys: selectedOpenApiOperations,
+                  onChange: (keys) => setSelectedOpenApiOperations(keys),
+                }}
+                columns={[
+                  { title: t("Method"), dataIndex: "method", width: 90 },
+                  { title: t("Endpoint"), dataIndex: "path" },
+                  { title: t("Operation"), dataIndex: "operation_id" },
+                  { title: t("Risk"), dataIndex: "risk_level", width: 100 },
+                ]}
+                dataSource={openApiPreview.operations || []}
+              />
+              <Form
+                form={openApiBatchForm}
+                layout="vertical"
+                className="form-section"
+                initialValues={{ risk_level: "medium", timeout_ms: 5000, headers: "{}" }}
+                onFinish={importSelectedOpenApiTools}
+              >
+                <Title level={5}>{t("Batch Defaults")}</Title>
+                <Row gutter={12}>
+                  <Col xs={24} md={8}>
+                    <Form.Item name="owner" label={t("Owner")}>
+                      <Input />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={8}>
+                    <Form.Item name="risk_level" label={t("Risk")}>
+                      <Select options={[{ value: "low" }, { value: "medium" }, { value: "high" }]} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={8}>
+                    <Form.Item name="timeout_ms" label={t("Timeout")}>
+                      <InputNumber min={100} max={60000} step={500} className="full-width" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Form.Item name="headers" label={t("Headers JSON")}>
+                  <Input.TextArea rows={2} />
+                </Form.Item>
+                <Button type="primary" icon={<PlusOutlined />} htmlType="submit" disabled={!selectedOpenApiOperations.length}>
+                  {t("Import Selected")} ({selectedOpenApiOperations.length})
+                </Button>
+              </Form>
+              {openApiImportResults ? (
+                <div className="form-section">
+                  <Title level={5}>{t("Import Results")}</Title>
+                  <Table
+                    rowKey="operation_key"
+                    size="small"
+                    pagination={false}
+                    columns={[
+                      { title: t("Operation"), dataIndex: "operation_key" },
+                      { title: t("Status"), dataIndex: "status" },
+                      {
+                        title: t("Tool"),
+                        render: (_, record) => record.tool?.name || record.error?.message || "-",
+                      },
+                    ]}
+                    dataSource={openApiImportResults}
+                  />
+                </div>
+              ) : null}
+              <Form layout="vertical" className="form-section">
+                <Form.Item label={t("Operation")}>
+                  <Select
+                    showSearch
+                    value={selectedOpenApiOperation || undefined}
+                    optionFilterProp="label"
+                    onChange={(value) => {
+                      setSelectedOpenApiOperation(value);
+                      fillOpenApiToolForm(openApiPreview.operations.find((operation) => operation.operation_key === value));
+                    }}
+                    options={(openApiPreview.operations || []).map((operation) => ({
+                      value: operation.operation_key,
+                      label: `${operation.method} ${operation.path} ${operation.operation_id || ""}`,
+                    }))}
+                  />
+                </Form.Item>
+              </Form>
+              {selectedOpenApiOperationDetail?.warnings?.length ? (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message={t("Warnings")}
+                  description={selectedOpenApiOperationDetail.warnings.join(" ")}
+                />
+              ) : null}
+              <Form form={openApiToolForm} layout="vertical" onFinish={createImportedOpenApiTool} className="form-section">
+                <Title level={5}>{t("Imported Tool Preview")}</Title>
+                <Row gutter={12}>
+                  <Col xs={24} md={12}>
+                    <Form.Item name="name" label={t("Name")} rules={[{ required: true }]}>
+                      <Input />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={12}>
+                    <Form.Item name="owner" label={t("Owner")}>
+                      <Input />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Form.Item name="endpoint" label={t("Endpoint")} rules={[{ required: true }]}>
+                  <Input />
+                </Form.Item>
+                <Row gutter={12}>
+                  <Col xs={24} md={8}>
+                    <Form.Item name="method" label={t("Method")} rules={[{ required: true }]}>
+                      <Select options={[{ value: "GET" }, { value: "POST" }]} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={8}>
+                    <Form.Item name="risk_level" label={t("Risk")} rules={[{ required: true }]}>
+                      <Select options={[{ value: "low" }, { value: "medium" }, { value: "high" }]} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={8}>
+                    <Form.Item name="timeout_ms" label={t("Timeout")} rules={[{ required: true }]}>
+                      <InputNumber min={100} max={60000} step={500} className="full-width" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Form.Item name="description" label={t("Description")}>
+                  <Input.TextArea rows={2} />
+                </Form.Item>
+                <Form.Item name="headers" label={t("Headers JSON")}>
+                  <Input.TextArea rows={3} />
+                </Form.Item>
+                <Form.Item name="input_schema" label={t("Input Schema JSON")}>
+                  <Input.TextArea rows={5} />
+                </Form.Item>
+                <Form.Item name="output_schema" label={t("Output Schema JSON")}>
+                  <Input.TextArea rows={4} />
+                </Form.Item>
+                <Button type="primary" icon={<PlusOutlined />} htmlType="submit" disabled={!selectedOpenApiOperationDetail?.tool}>
+                  {t("Create Imported Tool")}
+                </Button>
+              </Form>
+            </div>
+          ) : null}
+        </Modal>
 
         <Modal title={t("Tool Test Result")} open={Boolean(testResult)} onCancel={() => setTestResult(null)} footer={null} width={720}>
           <Descriptions bordered size="small" column={1}>

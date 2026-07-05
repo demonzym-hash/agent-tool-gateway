@@ -7,6 +7,7 @@ import { asyncHandler, errorMiddleware, HttpError, notFound } from "./errors.js"
 import { callHttpTool } from "./httpTool.js";
 import { createApiKey, hashApiKey } from "./keys.js";
 import { atgResultToMcpToolResult, jsonRpcError, jsonRpcResult, MCP_PROTOCOL_VERSION, toolToMcpTool } from "./mcp.js";
+import { buildOpenApiImportPreview, buildOpenApiTool, fetchOpenApiDocument, parseOpenApiDocument } from "./openapiImport.js";
 import { evaluatePolicy } from "./policy.js";
 import { redactJson } from "./redaction.js";
 import { validateJsonSchema } from "./schemaValidation.js";
@@ -53,6 +54,38 @@ const policyEvaluateSchema = z.object({
 const approvalDecisionSchema = z.object({
   approver: z.string().optional().default("local-approver"),
   comment: z.string().optional().default(""),
+});
+
+const openApiImportPreviewSchema = z.object({
+  source_type: z.enum(["content", "url"]),
+  content: z.string().optional(),
+  url: z.string().optional(),
+  base_url: z.string().optional().default(""),
+});
+
+const openApiImportToolsSchema = openApiImportPreviewSchema.extend({
+  defaults: z
+    .object({
+      owner: z.string().optional(),
+      risk_level: z.enum(["low", "medium", "high"]).optional(),
+      timeout_ms: z.number().int().min(100).max(60000).optional(),
+      headers: z.record(z.string()).optional(),
+    })
+    .optional()
+    .default({}),
+  operations: z
+    .array(
+      z.object({
+        operation_key: z.string().min(1),
+        name: z.string().min(1).optional(),
+        owner: z.string().optional(),
+        risk_level: z.enum(["low", "medium", "high"]).optional(),
+        timeout_ms: z.number().int().min(100).max(60000).optional(),
+        headers: z.record(z.string()).optional(),
+      }),
+    )
+    .min(1)
+    .max(50),
 });
 
 function parseBody(schema, body) {
@@ -221,7 +254,7 @@ export function createApp({
   const secretManager = createSecretManager(secretKey);
 
   app.use(cors());
-  app.use(express.json({ limit: "1mb" }));
+  app.use(express.json({ limit: "5mb" }));
   if (logger) {
     app.use(pinoHttp({ logger }));
   }
@@ -234,6 +267,66 @@ export function createApp({
       [event_type, actor_type, actor_id, resource_type, resource_id, detail_json],
     );
     return result.rows[0];
+  }
+
+  async function createHttpTool(input) {
+    const { publicHeaders, secretHeaders } = splitToolHeaders(input.headers);
+    const authConfigEncrypted = Object.keys(secretHeaders).length ? secretManager.encryptJson({ headers: secretHeaders }) : null;
+    const result = await query(
+      `INSERT INTO tools
+       (name, description, type, risk_level, endpoint, method, headers, timeout_ms, input_schema, output_schema, owner, auth_config_encrypted)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       RETURNING *`,
+      [
+        input.name,
+        input.description,
+        input.type,
+        input.risk_level,
+        input.endpoint,
+        input.method,
+        publicHeaders,
+        input.timeout_ms,
+        input.input_schema,
+        input.output_schema,
+        input.owner,
+        authConfigEncrypted,
+      ],
+    );
+    const tool = result.rows[0];
+    await writeAuditLog({
+      event_type: "tool.created",
+      actor_type: "admin",
+      actor_id: "local",
+      resource_type: "tool",
+      resource_id: tool.id,
+      detail_json: { name: tool.name, endpoint: tool.endpoint },
+    });
+    return publicTool(tool, secretManager);
+  }
+
+  async function readOpenApiImportSpec(input) {
+    let raw;
+    let sourceName;
+
+    if (input.source_type === "url") {
+      if (!input.url) throw new HttpError(400, "invalid_request", "url is required");
+      sourceName = input.url;
+      try {
+        raw = await fetchOpenApiDocument(input.url);
+      } catch (error) {
+        throw new HttpError(400, "openapi_import_failed", `${error.message}. Try importing a file instead.`);
+      }
+    } else {
+      if (!input.content) throw new HttpError(400, "invalid_request", "content is required");
+      sourceName = "OpenAPI content";
+      raw = input.content;
+    }
+
+    try {
+      return parseOpenApiDocument(raw, sourceName);
+    } catch (error) {
+      throw new HttpError(400, "invalid_openapi_document", error.message);
+    }
   }
 
   async function requireAgent(req) {
@@ -791,42 +884,66 @@ export function createApp({
   );
 
   app.post(
+    "/api/v1/openapi/import/preview",
+    requireAdmin,
+    asyncHandler(async (req, res) => {
+      const input = parseBody(openApiImportPreviewSchema, req.body || {});
+      const spec = await readOpenApiImportSpec(input);
+      res.json(buildOpenApiImportPreview(spec, { baseUrl: input.base_url }));
+    }),
+  );
+
+  app.post(
+    "/api/v1/openapi/import/tools",
+    requireAdmin,
+    asyncHandler(async (req, res) => {
+      const input = parseBody(openApiImportToolsSchema, req.body || {});
+      const spec = await readOpenApiImportSpec(input);
+      const results = [];
+
+      for (const operation of input.operations) {
+        try {
+          const generated = buildOpenApiTool(spec, {
+            operationKey: operation.operation_key,
+            baseUrl: input.base_url,
+            name: operation.name,
+            owner: operation.owner || input.defaults.owner,
+            riskLevel: operation.risk_level || input.defaults.risk_level,
+            timeoutMs: operation.timeout_ms || input.defaults.timeout_ms || 5000,
+            headers: operation.headers || input.defaults.headers || {},
+          });
+          const parsedTool = parseBody(toolCreateSchema, generated.tool);
+          const tool = await createHttpTool(parsedTool);
+          results.push({
+            operation_key: operation.operation_key,
+            status: "created",
+            tool,
+            notes: generated.notes,
+            warnings: generated.warnings,
+          });
+        } catch (error) {
+          results.push({
+            operation_key: operation.operation_key,
+            status: "failed",
+            error: {
+              code: error.code === "23505" ? "tool_name_exists" : error.code || "tool_create_failed",
+              message: error.message || "Tool creation failed",
+            },
+          });
+        }
+      }
+
+      res.json({ results });
+    }),
+  );
+
+  app.post(
     "/api/v1/tools",
     requireAdmin,
     asyncHandler(async (req, res) => {
       const input = parseBody(toolCreateSchema, req.body);
-      const { publicHeaders, secretHeaders } = splitToolHeaders(input.headers);
-      const authConfigEncrypted = Object.keys(secretHeaders).length ? secretManager.encryptJson({ headers: secretHeaders }) : null;
-      const result = await query(
-        `INSERT INTO tools
-         (name, description, type, risk_level, endpoint, method, headers, timeout_ms, input_schema, output_schema, owner, auth_config_encrypted)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-         RETURNING *`,
-        [
-          input.name,
-          input.description,
-          input.type,
-          input.risk_level,
-          input.endpoint,
-          input.method,
-          publicHeaders,
-          input.timeout_ms,
-          input.input_schema,
-          input.output_schema,
-          input.owner,
-          authConfigEncrypted,
-        ],
-      );
-      const tool = result.rows[0];
-      await writeAuditLog({
-        event_type: "tool.created",
-        actor_type: "admin",
-        actor_id: "local",
-        resource_type: "tool",
-        resource_id: tool.id,
-        detail_json: { name: tool.name, endpoint: tool.endpoint },
-      });
-      res.status(201).json({ tool: publicTool(tool, secretManager) });
+      const tool = await createHttpTool(input);
+      res.status(201).json({ tool });
     }),
   );
 
@@ -856,7 +973,15 @@ export function createApp({
       const toolResult = await query("SELECT * FROM tools WHERE id = $1 AND status = 'active'", [req.params.id]);
       if (!toolResult.rowCount) throw notFound("Tool");
       validateToolInput(toolResult.rows[0], req.body || {});
-      const result = await callHttpTool(toolWithSecretHeaders(toolResult.rows[0]), req.body || {}, toolEgressPolicy);
+      let result;
+      try {
+        result = await callHttpTool(toolWithSecretHeaders(toolResult.rows[0]), req.body || {}, toolEgressPolicy);
+      } catch (err) {
+        if (err instanceof HttpError) throw err;
+        const message = err.name === "AbortError" ? "Tool request timed out" : err.message;
+        res.json({ status: "failed", http_status: 0, data: { error: message } });
+        return;
+      }
       res.json({ status: result.ok ? "success" : "failed", http_status: result.statusCode, data: redactJson(result.data) });
     }),
   );

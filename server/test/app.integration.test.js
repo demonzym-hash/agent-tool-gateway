@@ -12,6 +12,75 @@ function now() {
   return new Date().toISOString();
 }
 
+function openApiImportFixture(baseUrl) {
+  return {
+    openapi: "3.1.0",
+    info: { title: "Import Fixture API", version: "1.0.0" },
+    servers: [{ url: baseUrl }],
+    paths: {
+      "/mock/orders/{order_id}": {
+        get: {
+          operationId: "getImportedOrder",
+          summary: "Get imported order",
+          "x-atg-risk-level": "low",
+          parameters: [
+            {
+              name: "order_id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+            {
+              name: "include",
+              in: "query",
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Imported order",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      status: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/mock/refund_order": {
+        post: {
+          operationId: "importRefundOrder",
+          summary: "Import refund order",
+          "x-atg-risk-level": "medium",
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["order_id"],
+                  properties: {
+                    order_id: { type: "string" },
+                    amount: { type: "number" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: "Refund result" },
+          },
+        },
+      },
+    },
+  };
+}
+
 function createFakeDb() {
   const db = {
     agents: [],
@@ -436,6 +505,11 @@ describe("ATG API flow", () => {
       const chunks = [];
       req.on("data", (chunk) => chunks.push(chunk));
       req.on("end", () => {
+        if (req.url === "/openapi.json") {
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify(openApiImportFixture(mockBaseUrl)));
+          return;
+        }
         const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
         res.writeHead(200, { "content-type": "application/json" });
         if (req.url === "/mock/search_customer") {
@@ -553,6 +627,99 @@ describe("ATG API flow", () => {
     assert.equal(fake.db.tools.length, 1);
     assert.equal(fake.db.invocations.length, 1);
     assert.equal(fake.db.auditLogs.length, 3);
+  });
+
+  it("previews OpenAPI imports from pasted content and URL", async () => {
+    const contentPreview = await jsonFetch(`${atgBaseUrl}/api/v1/openapi/import/preview`, {
+      method: "POST",
+      body: JSON.stringify({
+        source_type: "content",
+        content: JSON.stringify(openApiImportFixture(mockBaseUrl)),
+      }),
+    });
+    assert.equal(contentPreview.response.status, 200);
+    assert.equal(contentPreview.data.document.title, "Import Fixture API");
+    assert.equal(contentPreview.data.operations.length, 2);
+
+    const importedGet = contentPreview.data.operations.find((operation) => operation.operation_id === "getImportedOrder");
+    assert.equal(importedGet.method, "GET");
+    assert.equal(importedGet.tool.name, "get_imported_order");
+    assert.equal(importedGet.tool.endpoint, `${mockBaseUrl}/mock/orders/{order_id}`);
+    assert.equal(importedGet.tool.risk_level, "low");
+    assert.deepEqual(importedGet.tool.input_schema.required, ["order_id"]);
+    assert.equal(importedGet.tool.input_schema.properties.include.type, "string");
+
+    const urlPreview = await jsonFetch(`${atgBaseUrl}/api/v1/openapi/import/preview`, {
+      method: "POST",
+      body: JSON.stringify({
+        source_type: "url",
+        url: `${mockBaseUrl}/openapi.json`,
+      }),
+    });
+    assert.equal(urlPreview.response.status, 200);
+    assert.equal(urlPreview.data.operations.some((operation) => operation.operation_id === "importRefundOrder"), true);
+
+    const createdTool = await jsonFetch(`${atgBaseUrl}/api/v1/tools`, {
+      method: "POST",
+      body: JSON.stringify(importedGet.tool),
+    });
+    assert.equal(createdTool.response.status, 201);
+    assert.equal(createdTool.data.tool.name, "get_imported_order");
+  });
+
+  it("imports selected OpenAPI operations as Tools in one request", async () => {
+    const imported = await jsonFetch(`${atgBaseUrl}/api/v1/openapi/import/tools`, {
+      method: "POST",
+      body: JSON.stringify({
+        source_type: "content",
+        content: JSON.stringify(openApiImportFixture(mockBaseUrl)),
+        defaults: {
+          owner: "platform",
+          risk_level: "medium",
+          timeout_ms: 7000,
+          headers: { "x-demo": "batch" },
+        },
+        operations: [{ operation_key: "getImportedOrder" }, { operation_key: "importRefundOrder" }],
+      }),
+    });
+
+    assert.equal(imported.response.status, 200);
+    assert.deepEqual(
+      imported.data.results.map((result) => result.status),
+      ["created", "created"],
+    );
+    assert.deepEqual(
+      imported.data.results.map((result) => result.tool.name),
+      ["get_imported_order", "import_refund_order"],
+    );
+    assert.equal(imported.data.results[0].tool.owner, "platform");
+    assert.equal(imported.data.results[0].tool.timeout_ms, 7000);
+    assert.deepEqual(imported.data.results[0].tool.headers, { "x-demo": "batch" });
+
+    const tools = await jsonFetch(`${atgBaseUrl}/api/v1/tools`);
+    assert.equal(tools.data.tools.some((tool) => tool.name === "import_refund_order"), true);
+  });
+
+  it("returns a failed Tool test result when the upstream endpoint is unreachable", async () => {
+    const createdTool = await jsonFetch(`${atgBaseUrl}/api/v1/tools`, {
+      method: "POST",
+      body: JSON.stringify({
+        name: "unreachable_imported_tool",
+        endpoint: "http://127.0.0.1:1/unreachable",
+        method: "POST",
+        headers: {},
+      }),
+    });
+    assert.equal(createdTool.response.status, 201);
+
+    const tested = await jsonFetch(`${atgBaseUrl}/api/v1/tools/${createdTool.data.tool.id}/test`, {
+      method: "POST",
+      body: JSON.stringify({ order_id: "ord_unreachable" }),
+    });
+    assert.equal(tested.response.status, 200);
+    assert.equal(tested.data.status, "failed");
+    assert.equal(tested.data.http_status, 0);
+    assert.match(tested.data.data.error, /fetch failed|ECONNREFUSED|connect/u);
   });
 
   it("redacts CRM response data before returning and storing invocation results", async () => {

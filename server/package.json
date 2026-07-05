@@ -5,7 +5,7 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
-    "check": "node --check src/app.js && node --check src/index.js && node --check src/migrate.js",
+    "check": "node --check src/app.js && node --check src/index.js && node --check src/migrate.js && node --check src/openapiImport.js",
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "migrate": "node src/migrate.js",
@@ -20,6 +20,7 @@
     "pg": "^8.13.1",
     "pino": "^9.6.0",
     "pino-http": "^10.4.0",
+    "yaml": "^2.9.0",
     "zod": "^3.24.1"
   }
 }

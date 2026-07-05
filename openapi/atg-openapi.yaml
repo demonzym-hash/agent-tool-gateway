@@ -161,6 +161,40 @@ paths:
                 properties:
                   tool:
                     $ref: "#/components/schemas/Tool"
+  /api/v1/openapi/import/preview:
+    post:
+      tags: [Tools]
+      summary: Preview ATG Tools from an OpenAPI document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenApiImportPreviewRequest"
+      responses:
+        "200":
+          description: Parsed OpenAPI document and importable operations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenApiImportPreviewResult"
+  /api/v1/openapi/import/tools:
+    post:
+      tags: [Tools]
+      summary: Import selected OpenAPI operations as ATG Tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenApiImportToolsRequest"
+      responses:
+        "200":
+          description: Per-operation import results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenApiImportToolsResult"
   /api/v1/tools/{id}:
     get:
       tags: [Tools]
@@ -719,6 +753,140 @@ components:
               enum: [active, disabled]
             created_at: { type: string, format: date-time }
             updated_at: { type: string, format: date-time }
+    OpenApiImportPreviewRequest:
+      type: object
+      required: [source_type]
+      properties:
+        source_type:
+          type: string
+          enum: [content, url]
+        content:
+          type: string
+          description: OpenAPI JSON or YAML content when source_type is content.
+        url:
+          type: string
+          format: uri
+          description: OpenAPI document URL when source_type is url.
+        base_url:
+          type: string
+          format: uri
+          description: Optional server URL override used to generate Tool endpoints.
+    OpenApiImportToolsRequest:
+      allOf:
+        - $ref: "#/components/schemas/OpenApiImportPreviewRequest"
+        - type: object
+          required: [operations]
+          properties:
+            defaults:
+              type: object
+              description: Defaults applied to every imported Tool unless an operation overrides them.
+              properties:
+                owner: { type: string }
+                risk_level:
+                  type: string
+                  enum: [low, medium, high]
+                timeout_ms:
+                  type: integer
+                  minimum: 100
+                  maximum: 60000
+                headers:
+                  type: object
+                  additionalProperties: { type: string }
+            operations:
+              type: array
+              minItems: 1
+              maxItems: 50
+              items:
+                type: object
+                required: [operation_key]
+                properties:
+                  operation_key:
+                    type: string
+                    description: Operation key returned by the preview endpoint.
+                  name:
+                    type: string
+                    description: Optional Tool name override.
+                  owner: { type: string }
+                  risk_level:
+                    type: string
+                    enum: [low, medium, high]
+                  timeout_ms:
+                    type: integer
+                    minimum: 100
+                    maximum: 60000
+                  headers:
+                    type: object
+                    additionalProperties: { type: string }
+    OpenApiImportPreviewResult:
+      type: object
+      properties:
+        document:
+          type: object
+          properties:
+            title: { type: string }
+            version: { type: string }
+            openapi_version: { type: string }
+            servers:
+              type: array
+              items: { type: string }
+        operations:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              operation_key: { type: string }
+              operation_id: { type: string }
+              method:
+                type: string
+                enum: [GET, POST]
+              path: { type: string }
+              summary: { type: string }
+              risk_level: { type: string }
+              has_request_body: { type: boolean }
+              path_parameters:
+                type: array
+                items: { type: string }
+              query_parameters:
+                type: array
+                items: { type: string }
+              header_parameters:
+                type: array
+                items: { type: string }
+              tool:
+                $ref: "#/components/schemas/ToolCreate"
+              notes:
+                type: array
+                items: { type: string }
+              warnings:
+                type: array
+                items: { type: string }
+    OpenApiImportToolsResult:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            required: [operation_key, status]
+            properties:
+              operation_key: { type: string }
+              status:
+                type: string
+                enum: [created, failed]
+              tool:
+                $ref: "#/components/schemas/Tool"
+              notes:
+                type: array
+                items: { type: string }
+              warnings:
+                type: array
+                items: { type: string }
+              error:
+                type: object
+                properties:
+                  code: { type: string }
+                  message: { type: string }
     ToolTestResult:
       type: object
       properties:

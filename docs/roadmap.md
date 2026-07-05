@@ -122,6 +122,7 @@ Focus:
 
 - Declare the public core ready for general availability, not just developer preview.
 - Align the core REST API, MCP surface, OpenAPI spec, Python SDK, and TypeScript SDK so early adopters can integrate without guessing.
+- Provide a lightweight Web Console import flow for standard OpenAPI documents exported from tools such as Swagger, Apifox, or YApi, so users can create ATG HTTP Tools from selected API operations.
 - Fill practical SDK/API coverage gaps around the core governance loop, including policy preview, approval decisions, invocation/audit review, and evidence export.
 - Keep README, OpenAPI, SDK examples, and demo scripts consistent with actual server behavior.
 - Document a lightweight compatibility policy for future `v1.x` releases, including how breaking changes will be handled.
