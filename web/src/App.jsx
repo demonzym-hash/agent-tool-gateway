@@ -175,6 +175,7 @@ const zhText = {
   "Policy Details": "策略详情",
   Condition: "条件",
   Scope: "范围",
+  Rule: "规则",
   "Invocation Details": "调用详情",
   Approval: "审批",
   Error: "错误",
@@ -2045,13 +2046,29 @@ export default function App() {
           <JsonBlock value={invokeResult?.data} />
         </Modal>
 
-        <Modal
+        <Drawer
           title={t("Policy Preview")}
           open={Boolean(policyPreviewResult)}
-          onCancel={() => setPolicyPreviewResult(null)}
-          footer={null}
-          width={760}
+          onClose={() => setPolicyPreviewResult(null)}
+          width={820}
+          destroyOnClose
         >
+          <div className="detail-drawer-heading">
+            <Space wrap size={8}>
+              {policyPreviewResult?.decision?.action ? (
+                <Tag color={policyPreviewResult.decision.action === "deny" ? "red" : "green"}>{policyPreviewResult.decision.action}</Tag>
+              ) : null}
+              <Text strong>{policyPreviewResult?.decision?.matched_policy_name || policyPreviewResult?.decision?.reason || "-"}</Text>
+            </Space>
+            <div className="detail-drawer-meta">
+              <Text type="secondary">
+                {t("Agent")}: {policyPreviewResult?.agent?.name || "-"}
+              </Text>
+              <Text type="secondary">
+                {t("Tool")}: {policyPreviewResult?.tool?.name || "-"}
+              </Text>
+            </div>
+          </div>
           <Tabs
             className="detail-tabs"
             items={[
@@ -2105,61 +2122,29 @@ export default function App() {
               },
             ]}
           />
-        </Modal>
+        </Drawer>
 
-        <Modal title={t("Approval Details")} open={Boolean(selectedApproval)} onCancel={() => setSelectedApproval(null)} footer={null} width={820}>
-          <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label={t("ID")}>{selectedApproval?.id}</Descriptions.Item>
-            <Descriptions.Item label={t("Invocation")}>{selectedApproval?.invocation_id}</Descriptions.Item>
-            <Descriptions.Item label={t("Status")}>
+        <Drawer
+          title={t("Approval Details")}
+          open={Boolean(selectedApproval)}
+          onClose={() => setSelectedApproval(null)}
+          width={820}
+          destroyOnClose
+        >
+          <div className="detail-drawer-heading">
+            <Space wrap size={8}>
               {selectedApproval ? <StatusTag status={selectedApproval.status} t={t} /> : null}
-            </Descriptions.Item>
-            <Descriptions.Item label={t("Approver")}>{selectedApproval?.approver || "-"}</Descriptions.Item>
-            <Descriptions.Item label={t("Reason")}>{selectedApproval?.reason || "-"}</Descriptions.Item>
-            <Descriptions.Item label={t("Comment")}>{selectedApproval?.comment || "-"}</Descriptions.Item>
-            <Descriptions.Item label={t("Created")}>
-              {selectedApproval?.created_at ? new Date(selectedApproval.created_at).toLocaleString() : "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label={t("Updated")}>
-              {selectedApproval?.updated_at ? new Date(selectedApproval.updated_at).toLocaleString() : "-"}
-            </Descriptions.Item>
-          </Descriptions>
-        </Modal>
-
-        <Modal title={t("Policy Details")} open={Boolean(selectedPolicy)} onCancel={() => setSelectedPolicy(null)} footer={null} width={860}>
-          <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label={t("ID")}>{selectedPolicy?.id}</Descriptions.Item>
-            <Descriptions.Item label={t("Name")}>{selectedPolicy?.name}</Descriptions.Item>
-            <Descriptions.Item label={t("Action")}>
-              {selectedPolicy?.action ? (
-                <Tag color={selectedPolicy.action === "deny" ? "red" : "green"}>{selectedPolicy.action}</Tag>
-              ) : null}
-            </Descriptions.Item>
-            <Descriptions.Item label={t("Priority")}>{selectedPolicy?.priority}</Descriptions.Item>
-            <Descriptions.Item label={t("Enabled")}>
-              {selectedPolicy ? <Tag color={selectedPolicy.enabled ? "green" : "default"}>{selectedPolicy.enabled ? t("Enabled") : t("Disabled")}</Tag> : null}
-            </Descriptions.Item>
-            <Descriptions.Item label={t("Description")}>{selectedPolicy?.description || "-"}</Descriptions.Item>
-            <Descriptions.Item label={t("Created")}>
-              {selectedPolicy?.created_at ? new Date(selectedPolicy.created_at).toLocaleString() : "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label={t("Updated")}>
-              {selectedPolicy?.updated_at ? new Date(selectedPolicy.updated_at).toLocaleString() : "-"}
-            </Descriptions.Item>
-          </Descriptions>
-          <div className="detail-json-grid">
-            <div>
-              <Text strong>{t("Condition")}</Text>
-              <JsonBlock value={selectedPolicy?.condition_json} />
-            </div>
-            <div>
-              <Text strong>{t("Scope")}</Text>
-              <JsonBlock value={selectedPolicy?.scope} />
+              <Text strong>{selectedApproval?.reason || "-"}</Text>
+            </Space>
+            <div className="detail-drawer-meta">
+              <Text type="secondary">
+                {t("Invocation")}: {selectedApproval?.invocation_id || "-"}
+              </Text>
+              <Text type="secondary">
+                {t("Created")}: {selectedApproval?.created_at ? new Date(selectedApproval.created_at).toLocaleString() : "-"}
+              </Text>
             </div>
           </div>
-        </Modal>
-
-        <Modal title={t("Invocation Details")} open={Boolean(selectedInvocation)} onCancel={() => setSelectedInvocation(null)} footer={null} width={920}>
           <Tabs
             className="detail-tabs"
             items={[
@@ -2167,28 +2152,160 @@ export default function App() {
                 key: "overview",
                 label: t("Overview"),
                 children: (
-                  <>
-                    <Descriptions bordered size="small" column={1}>
-                      <Descriptions.Item label={t("ID")}>{selectedInvocation?.id}</Descriptions.Item>
-                      <Descriptions.Item label={t("Agent")}>{selectedInvocation?.agent_name}</Descriptions.Item>
-                      <Descriptions.Item label={t("Tool")}>{selectedInvocation?.tool_name}</Descriptions.Item>
-                      <Descriptions.Item label={t("Status")}>
-                        {selectedInvocation ? <StatusTag status={selectedInvocation.status} t={t} /> : null}
-                      </Descriptions.Item>
-                      <Descriptions.Item label={t("Latency")}>{selectedInvocation?.latency_ms ?? 0} ms</Descriptions.Item>
-                      <Descriptions.Item label={t("Matched Policy")}>{selectedInvocation?.matched_policy_id || "-"}</Descriptions.Item>
-                      <Descriptions.Item label={t("Approval")}>{selectedInvocation?.approval_id || "-"}</Descriptions.Item>
-                      <Descriptions.Item label={t("Error")}>{selectedInvocation?.error_message || "-"}</Descriptions.Item>
-                      <Descriptions.Item label={t("Created")}>
-                        {selectedInvocation?.created_at ? new Date(selectedInvocation.created_at).toLocaleString() : "-"}
-                      </Descriptions.Item>
-                    </Descriptions>
-                    <div className="detail-section">
-                      <Text strong>{t("Decision Trace")}</Text>
-                      <DecisionTrace trace={selectedInvocation?.policy_decision?.decision_trace} t={t} />
-                    </div>
-                  </>
+                  <Descriptions bordered size="small" column={1}>
+                    <Descriptions.Item label={t("ID")}>{selectedApproval?.id}</Descriptions.Item>
+                    <Descriptions.Item label={t("Invocation")}>{selectedApproval?.invocation_id}</Descriptions.Item>
+                    <Descriptions.Item label={t("Status")}>
+                      {selectedApproval ? <StatusTag status={selectedApproval.status} t={t} /> : null}
+                    </Descriptions.Item>
+                    <Descriptions.Item label={t("Approver")}>{selectedApproval?.approver || "-"}</Descriptions.Item>
+                    <Descriptions.Item label={t("Reason")}>{selectedApproval?.reason || "-"}</Descriptions.Item>
+                    <Descriptions.Item label={t("Comment")}>{selectedApproval?.comment || "-"}</Descriptions.Item>
+                    <Descriptions.Item label={t("Created")}>
+                      {selectedApproval?.created_at ? new Date(selectedApproval.created_at).toLocaleString() : "-"}
+                    </Descriptions.Item>
+                    <Descriptions.Item label={t("Updated")}>
+                      {selectedApproval?.updated_at ? new Date(selectedApproval.updated_at).toLocaleString() : "-"}
+                    </Descriptions.Item>
+                  </Descriptions>
                 ),
+              },
+              {
+                key: "raw",
+                label: t("Raw JSON"),
+                children: <JsonBlock value={selectedApproval} />,
+              },
+            ]}
+          />
+        </Drawer>
+
+        <Drawer
+          title={t("Policy Details")}
+          open={Boolean(selectedPolicy)}
+          onClose={() => setSelectedPolicy(null)}
+          width={860}
+          destroyOnClose
+        >
+          <div className="detail-drawer-heading">
+            <Space wrap size={8}>
+              {selectedPolicy?.action ? <Tag color={selectedPolicy.action === "deny" ? "red" : "green"}>{selectedPolicy.action}</Tag> : null}
+              {selectedPolicy ? <Tag color={selectedPolicy.enabled ? "green" : "default"}>{selectedPolicy.enabled ? t("Enabled") : t("Disabled")}</Tag> : null}
+              <Text strong>{selectedPolicy?.name || "-"}</Text>
+            </Space>
+            <div className="detail-drawer-meta">
+              <Text type="secondary">
+                {t("Priority")}: {selectedPolicy?.priority ?? "-"}
+              </Text>
+              <Text type="secondary">
+                {t("Updated")}: {selectedPolicy?.updated_at ? new Date(selectedPolicy.updated_at).toLocaleString() : "-"}
+              </Text>
+            </div>
+          </div>
+          <Tabs
+            className="detail-tabs"
+            items={[
+              {
+                key: "overview",
+                label: t("Overview"),
+                children: (
+                  <Descriptions bordered size="small" column={1}>
+                    <Descriptions.Item label={t("ID")}>{selectedPolicy?.id}</Descriptions.Item>
+                    <Descriptions.Item label={t("Name")}>{selectedPolicy?.name}</Descriptions.Item>
+                    <Descriptions.Item label={t("Action")}>
+                      {selectedPolicy?.action ? <Tag color={selectedPolicy.action === "deny" ? "red" : "green"}>{selectedPolicy.action}</Tag> : null}
+                    </Descriptions.Item>
+                    <Descriptions.Item label={t("Priority")}>{selectedPolicy?.priority}</Descriptions.Item>
+                    <Descriptions.Item label={t("Enabled")}>
+                      {selectedPolicy ? <Tag color={selectedPolicy.enabled ? "green" : "default"}>{selectedPolicy.enabled ? t("Enabled") : t("Disabled")}</Tag> : null}
+                    </Descriptions.Item>
+                    <Descriptions.Item label={t("Description")}>{selectedPolicy?.description || "-"}</Descriptions.Item>
+                    <Descriptions.Item label={t("Created")}>
+                      {selectedPolicy?.created_at ? new Date(selectedPolicy.created_at).toLocaleString() : "-"}
+                    </Descriptions.Item>
+                    <Descriptions.Item label={t("Updated")}>
+                      {selectedPolicy?.updated_at ? new Date(selectedPolicy.updated_at).toLocaleString() : "-"}
+                    </Descriptions.Item>
+                  </Descriptions>
+                ),
+              },
+              {
+                key: "rule",
+                label: t("Rule"),
+                children: (
+                  <div className="detail-json-grid">
+                    <div>
+                      <Text strong>{t("Condition")}</Text>
+                      <JsonBlock value={selectedPolicy?.condition_json} />
+                    </div>
+                    <div>
+                      <Text strong>{t("Scope")}</Text>
+                      <JsonBlock value={selectedPolicy?.scope} />
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: "raw",
+                label: t("Raw JSON"),
+                children: <JsonBlock value={selectedPolicy} />,
+              },
+            ]}
+          />
+        </Drawer>
+
+        <Drawer
+          title={t("Invocation Details")}
+          open={Boolean(selectedInvocation)}
+          onClose={() => setSelectedInvocation(null)}
+          width={920}
+          destroyOnClose
+        >
+          <div className="detail-drawer-heading">
+            <Space wrap size={8}>
+              {selectedInvocation ? <StatusTag status={selectedInvocation.status} t={t} /> : null}
+              <Text strong>{selectedInvocation?.tool_name || "-"}</Text>
+              <Text type="secondary">{selectedInvocation?.agent_name || "-"}</Text>
+            </Space>
+            <div className="detail-drawer-meta">
+              <Text type="secondary">
+                {t("Latency")}: {selectedInvocation?.latency_ms ?? 0} ms
+              </Text>
+              <Text type="secondary">
+                {t("Created")}: {selectedInvocation?.created_at ? new Date(selectedInvocation.created_at).toLocaleString() : "-"}
+              </Text>
+            </div>
+            {selectedInvocation?.error_message ? (
+              <Alert className="detail-section" type="error" showIcon message={selectedInvocation.error_message} />
+            ) : null}
+          </div>
+          <Tabs
+            className="detail-tabs"
+            items={[
+              {
+                key: "overview",
+                label: t("Overview"),
+                children: (
+                  <Descriptions bordered size="small" column={1}>
+                    <Descriptions.Item label={t("ID")}>{selectedInvocation?.id}</Descriptions.Item>
+                    <Descriptions.Item label={t("Agent")}>{selectedInvocation?.agent_name}</Descriptions.Item>
+                    <Descriptions.Item label={t("Tool")}>{selectedInvocation?.tool_name}</Descriptions.Item>
+                    <Descriptions.Item label={t("Status")}>
+                      {selectedInvocation ? <StatusTag status={selectedInvocation.status} t={t} /> : null}
+                    </Descriptions.Item>
+                    <Descriptions.Item label={t("Latency")}>{selectedInvocation?.latency_ms ?? 0} ms</Descriptions.Item>
+                    <Descriptions.Item label={t("Matched Policy")}>{selectedInvocation?.matched_policy_id || "-"}</Descriptions.Item>
+                    <Descriptions.Item label={t("Approval")}>{selectedInvocation?.approval_id || "-"}</Descriptions.Item>
+                    <Descriptions.Item label={t("Error")}>{selectedInvocation?.error_message || "-"}</Descriptions.Item>
+                    <Descriptions.Item label={t("Created")}>
+                      {selectedInvocation?.created_at ? new Date(selectedInvocation.created_at).toLocaleString() : "-"}
+                    </Descriptions.Item>
+                  </Descriptions>
+                ),
+              },
+              {
+                key: "trace",
+                label: t("Decision Trace"),
+                children: <DecisionTrace trace={selectedInvocation?.policy_decision?.decision_trace} t={t} />,
               },
               {
                 key: "payload",
@@ -2210,11 +2327,36 @@ export default function App() {
                   </div>
                 ),
               },
+              {
+                key: "raw",
+                label: t("Raw JSON"),
+                children: <JsonBlock value={selectedInvocation} />,
+              },
             ]}
           />
-        </Modal>
+        </Drawer>
 
-        <Modal title={t("Audit Log Details")} open={Boolean(selectedAuditLog)} onCancel={() => setSelectedAuditLog(null)} footer={null} width={860}>
+        <Drawer
+          title={t("Audit Log Details")}
+          open={Boolean(selectedAuditLog)}
+          onClose={() => setSelectedAuditLog(null)}
+          width={860}
+          destroyOnClose
+        >
+          <div className="detail-drawer-heading">
+            <Space wrap size={8}>
+              <Tag>{selectedAuditLog?.event_type || "-"}</Tag>
+              <Text strong>{[selectedAuditLog?.resource_type, selectedAuditLog?.resource_id].filter(Boolean).join(" / ") || "-"}</Text>
+            </Space>
+            <div className="detail-drawer-meta">
+              <Text type="secondary">
+                {t("Actor")}: {[selectedAuditLog?.actor_type, selectedAuditLog?.actor_id].filter(Boolean).join(" / ") || "-"}
+              </Text>
+              <Text type="secondary">
+                {t("Created")}: {selectedAuditLog?.created_at ? new Date(selectedAuditLog.created_at).toLocaleString() : "-"}
+              </Text>
+            </div>
+          </div>
           <Tabs
             className="detail-tabs"
             items={[
@@ -2246,13 +2388,18 @@ export default function App() {
                 ),
               },
               {
+                key: "payload",
+                label: t("Payload"),
+                children: <JsonBlock value={selectedAuditLog?.detail_json} />,
+              },
+              {
                 key: "raw",
                 label: t("Raw JSON"),
-                children: <JsonBlock value={selectedAuditLog?.detail_json} />,
+                children: <JsonBlock value={selectedAuditLog} />,
               },
             ]}
           />
-        </Modal>
+        </Drawer>
       </Content>
       </Layout>
     </ConfigProvider>

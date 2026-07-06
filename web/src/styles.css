@@ -243,6 +243,21 @@ body {
   margin-bottom: 12px;
 }
 
+.detail-drawer-heading {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid #dfe6e3;
+  border-radius: 8px;
+  background: #f7faf9;
+}
+
+.detail-drawer-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
 .decision-trace {
   display: grid;
   gap: 0;
