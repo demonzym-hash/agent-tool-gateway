@@ -7,6 +7,7 @@ import {
   Collapse,
   ConfigProvider,
   Descriptions,
+  Drawer,
   Form,
   Input,
   InputNumber,
@@ -305,6 +306,23 @@ function StatusTag({ status, t = (value) => value }) {
   return <Tag color={color}>{t(status)}</Tag>;
 }
 
+function PageHeader({ title, extra }) {
+  return (
+    <div className="page-heading">
+      <Title level={3}>{title}</Title>
+      {extra ? <div className="page-heading-extra">{extra}</div> : null}
+    </div>
+  );
+}
+
+function MetricCard({ title, value, icon, suffix }) {
+  return (
+    <Card className="metric-card">
+      <Statistic title={title} value={value} prefix={icon} suffix={suffix} />
+    </Card>
+  );
+}
+
 function traceColor(outcome) {
   if (outcome === "deny" || outcome === "no_match") return "red";
   if (outcome === "approve") return "gold";
@@ -407,6 +425,10 @@ export default function App() {
   const [selectedInvocation, setSelectedInvocation] = useState(null);
   const [selectedAuditLog, setSelectedAuditLog] = useState(null);
   const [selectedPolicy, setSelectedPolicy] = useState(null);
+  const [agentDrawerOpen, setAgentDrawerOpen] = useState(false);
+  const [toolDrawerOpen, setToolDrawerOpen] = useState(false);
+  const [policyDrawerOpen, setPolicyDrawerOpen] = useState(false);
+  const [policyPreviewDrawerOpen, setPolicyPreviewDrawerOpen] = useState(false);
   const [openApiImportOpen, setOpenApiImportOpen] = useState(false);
   const [openApiImportStep, setOpenApiImportStep] = useState(0);
   const [openApiSourceType, setOpenApiSourceType] = useState("url");
@@ -611,6 +633,7 @@ export default function App() {
       setOneTimeKey(data.api_key);
       setInvokeKey(data.api_key);
       agentForm.resetFields();
+      setAgentDrawerOpen(false);
       message.success(t("Agent created"));
       await refresh();
     } catch (error) {
@@ -656,6 +679,7 @@ export default function App() {
         }),
       });
       toolForm.resetFields();
+      setToolDrawerOpen(false);
       message.success(t("Tool created"));
       await refresh();
     } catch (error) {
@@ -697,6 +721,26 @@ export default function App() {
   function closeOpenApiImport() {
     setOpenApiImportOpen(false);
     resetOpenApiImport();
+  }
+
+  function closeAgentDrawer() {
+    setAgentDrawerOpen(false);
+    agentForm.resetFields();
+  }
+
+  function closeToolDrawer() {
+    setToolDrawerOpen(false);
+    toolForm.resetFields();
+  }
+
+  function closePolicyDrawer() {
+    setPolicyDrawerOpen(false);
+    policyForm.resetFields();
+  }
+
+  function closePolicyPreviewDrawer() {
+    setPolicyPreviewDrawerOpen(false);
+    policyPreviewForm.resetFields();
   }
 
   async function previewOpenApiImport(values) {
@@ -809,6 +853,7 @@ export default function App() {
         }),
       });
       policyForm.resetFields();
+      setPolicyDrawerOpen(false);
       message.success(t("Policy created"));
       await refresh();
     } catch (error) {
@@ -827,6 +872,7 @@ export default function App() {
         }),
       });
       setPolicyPreviewResult(data);
+      setPolicyPreviewDrawerOpen(false);
     } catch (error) {
       message.error(error.message);
     }
@@ -1209,14 +1255,17 @@ export default function App() {
     <ConfigProvider locale={antdLocale}>
       <Layout className="app-shell">
       <Header className="app-header">
-        <Space size={12}>
-          <SafetyCertificateOutlined className="brand-icon" />
-          <div>
+        <Space size={12} className="brand-block">
+          <div className="brand-mark">
+            <SafetyCertificateOutlined />
+          </div>
+          <div className="brand-copy">
             <Title level={4}>{t("ATG Console")}</Title>
             <Text>{t("Agent Tool Gateway")}</Text>
           </div>
         </Space>
-        <Space>
+        <Space wrap className="header-actions">
+          <Tag color={health === "ok" ? "green" : "red"}>{t("server")} {health}</Tag>
           <Input.Password
             className="admin-token-input"
             placeholder={t("Admin token")}
@@ -1232,7 +1281,6 @@ export default function App() {
               { value: "en", label: t("English") },
             ]}
           />
-          <Tag color={health === "ok" ? "green" : "red"}>{t("server")} {health}</Tag>
           <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
             {t("Refresh")}
           </Button>
@@ -1241,46 +1289,35 @@ export default function App() {
       </Header>
 
       <Content className="app-content">
+        <PageHeader
+          title={t("Overview")}
+          extra={
+            <Space wrap>
+              <Tag color="green">{t("success")} {dashboardStats.successfulInvocations}</Tag>
+              <Tag color="red">{t("failed")} {dashboardStats.failedInvocations}</Tag>
+              <Tag color="orange">{t("denied")} {dashboardStats.deniedInvocations}</Tag>
+              <Tag>{t("pending")} {dashboardStats.pendingInvocations}</Tag>
+            </Space>
+          }
+        />
         <Row gutter={[16, 16]} className="metrics">
           <Col xs={24} sm={12} xl={4}>
-            <Card>
-              <Statistic title={t("Agents")} value={agents.length} prefix={<KeyOutlined />} />
-            </Card>
+            <MetricCard title={t("Agents")} value={agents.length} icon={<KeyOutlined />} />
           </Col>
           <Col xs={24} sm={12} xl={4}>
-            <Card>
-              <Statistic title={t("Active Tools")} value={activeTools.length} prefix={<ToolOutlined />} />
-            </Card>
+            <MetricCard title={t("Active Tools")} value={activeTools.length} icon={<ToolOutlined />} />
           </Col>
           <Col xs={24} sm={12} xl={4}>
-            <Card>
-              <Statistic title={t("Audit Events")} value={auditLogs.length} prefix={<AuditOutlined />} />
-            </Card>
+            <MetricCard title={t("Audit Events")} value={auditLogs.length} icon={<AuditOutlined />} />
           </Col>
           <Col xs={24} sm={12} xl={4}>
-            <Card>
-              <Statistic title={t("Pending Approvals")} value={dashboardStats.pendingApprovals} />
-            </Card>
+            <MetricCard title={t("Pending Approvals")} value={dashboardStats.pendingApprovals} />
           </Col>
           <Col xs={24} sm={12} xl={4}>
-            <Card>
-              <Statistic title={t("Success Calls")} value={dashboardStats.successfulInvocations} />
-            </Card>
+            <MetricCard title={t("Success Calls")} value={dashboardStats.successfulInvocations} />
           </Col>
           <Col xs={24} sm={12} xl={4}>
-            <Card>
-              <Statistic title={t("Avg Latency")} value={dashboardStats.averageLatency} suffix="ms" />
-            </Card>
-          </Col>
-          <Col xs={24}>
-            <Card>
-              <Space wrap>
-                <Tag color="green">{t("success")} {dashboardStats.successfulInvocations}</Tag>
-                <Tag color="red">{t("failed")} {dashboardStats.failedInvocations}</Tag>
-                <Tag color="orange">{t("denied")} {dashboardStats.deniedInvocations}</Tag>
-                <Tag>{t("pending")} {dashboardStats.pendingInvocations}</Tag>
-              </Space>
-            </Card>
+            <MetricCard title={t("Avg Latency")} value={dashboardStats.averageLatency} suffix="ms" />
           </Col>
         </Row>
 
@@ -1297,114 +1334,52 @@ export default function App() {
         ) : null}
 
         <Tabs
+          className="workspace-tabs"
           defaultActiveKey="agents"
           items={[
             {
               key: "agents",
               label: t("Agents"),
               children: (
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} lg={8}>
-                    <Card title={t("Create Agent")}>
-                      <Form form={agentForm} layout="vertical" onFinish={createAgent}>
-                        <Form.Item name="name" label={t("Name")} initialValue="customer-service-agent" rules={[{ required: true }]}>
-                          <Input />
-                        </Form.Item>
-                        <Form.Item name="owner" label={t("Owner")} initialValue="ops">
-                          <Input />
-                        </Form.Item>
-                        <Form.Item name="source_type" label={t("Source")} initialValue="custom">
-                          <Select options={[{ value: "custom" }, { value: "workflow" }, { value: "assistant" }]} />
-                        </Form.Item>
-                        <Form.Item name="description" label={t("Description")}>
-                          <Input.TextArea rows={3} />
-                        </Form.Item>
-                        <Button icon={<PlusOutlined />} type="primary" htmlType="submit" block>
-                          {t("Create Agent")}
-                        </Button>
-                      </Form>
-                    </Card>
-                  </Col>
-                  <Col xs={24} lg={16}>
-                    <Card title={t("Agent List")}>
-                      <Table rowKey="id" columns={agentColumns} dataSource={agents} loading={loading} pagination={false} />
-                    </Card>
-                  </Col>
-                </Row>
+                <Card
+                  className="workspace-card"
+                  title={t("Agent List")}
+                  extra={
+                    <Button icon={<PlusOutlined />} type="primary" onClick={() => setAgentDrawerOpen(true)}>
+                      {t("Create Agent")}
+                    </Button>
+                  }
+                >
+                  <Table rowKey="id" columns={agentColumns} dataSource={agents} loading={loading} pagination={false} />
+                </Card>
               ),
             },
             {
               key: "tools",
               label: t("Tools"),
               children: (
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} lg={8}>
-                    <Card
-                      title={t("Create HTTP Tool")}
-                      extra={
-                        <Button size="small" icon={<UploadOutlined />} onClick={openOpenApiImport}>
-                          {t("Import OpenAPI")}
-                        </Button>
-                      }
-                    >
-                      <Form form={toolForm} layout="vertical" onFinish={createTool}>
-                        <Form.Item name="name" label={t("Name")} initialValue="refund_order" rules={[{ required: true }]}>
-                          <Input />
-                        </Form.Item>
-                        <Form.Item
-                          name="endpoint"
-                          label={t("Endpoint")}
-                          initialValue="http://mock-api:9090/mock/refund_order"
-                          rules={[{ required: true }]}
-                        >
-                          <Input />
-                        </Form.Item>
-                        <Row gutter={12}>
-                          <Col span={12}>
-                            <Form.Item name="method" label={t("Method")} initialValue="POST">
-                              <Select options={[{ value: "POST" }, { value: "GET" }]} />
-                            </Form.Item>
-                          </Col>
-                          <Col span={12}>
-                            <Form.Item name="timeout_ms" label={t("Timeout")} initialValue={5000}>
-                              <InputNumber min={100} max={60000} step={500} className="full-width" />
-                            </Form.Item>
-                          </Col>
-                        </Row>
-                        <Form.Item name="risk_level" label={t("Risk")} initialValue="medium">
-                          <Select options={[{ value: "low" }, { value: "medium" }, { value: "high" }]} />
-                        </Form.Item>
-                        <Form.Item name="owner" label={t("Owner")} initialValue="ops">
-                          <Input />
-                        </Form.Item>
-                        <Form.Item name="headers" label={t("Headers JSON")} tooltip={t("Authorization and API-key headers are stored encrypted")}>
-                          <Input.TextArea rows={3} />
-                        </Form.Item>
-                        <Form.Item
-                          name="input_schema"
-                          label={t("Input Schema JSON")}
-                          initialValue='{"type":"object","required":["order_id","amount"],"properties":{"order_id":{"type":"string"},"amount":{"type":"number","minimum":1},"reason":{"type":"string"}}}'
-                        >
-                          <Input.TextArea rows={5} />
-                        </Form.Item>
-                        <Form.Item name="output_schema" label={t("Output Schema JSON")} initialValue="{}">
-                          <Input.TextArea rows={3} />
-                        </Form.Item>
-                        <Button icon={<PlusOutlined />} type="primary" htmlType="submit" block>
-                          {t("Create Tool")}
-                        </Button>
-                      </Form>
-                    </Card>
-                  </Col>
-                  <Col xs={24} lg={16}>
-                    <Card
-                      title={t("Tool List")}
-                      extra={<Input.Password placeholder={t("Agent API key for invoke")} value={invokeKey} onChange={(e) => setInvokeKey(e.target.value)} />}
-                    >
-                      <Table rowKey="id" columns={toolColumns} dataSource={tools} loading={loading} pagination={false} />
-                    </Card>
-                  </Col>
-                </Row>
+                <Card
+                  className="workspace-card"
+                  title={t("Tool List")}
+                  extra={
+                    <Space wrap>
+                      <Input.Password
+                        className="invoke-key-input"
+                        placeholder={t("Agent API key for invoke")}
+                        value={invokeKey}
+                        onChange={(e) => setInvokeKey(e.target.value)}
+                      />
+                      <Button icon={<UploadOutlined />} onClick={openOpenApiImport}>
+                        {t("Import OpenAPI")}
+                      </Button>
+                      <Button icon={<PlusOutlined />} type="primary" onClick={() => setToolDrawerOpen(true)}>
+                        {t("Create Tool")}
+                      </Button>
+                    </Space>
+                  }
+                >
+                  <Table rowKey="id" columns={toolColumns} dataSource={tools} loading={loading} pagination={false} />
+                </Card>
               ),
             },
             {
@@ -1413,105 +1388,121 @@ export default function App() {
               children: (
                 <Row gutter={[16, 16]}>
                   <Col xs={24}>
-                    <Card>
-                      <Space wrap>
-                        <Select
-                          allowClear
-                          showSearch
-                          placeholder={t("Agent")}
-                          className="filter-select"
-                          value={logFilters.invocation_agent_id || undefined}
-                          onChange={(value) => setLogFilters((current) => ({ ...current, invocation_agent_id: value || "" }))}
-                          options={agentOptions}
-                          optionFilterProp="label"
-                        />
-                        <Select
-                          allowClear
-                          showSearch
-                          placeholder={t("Tool")}
-                          className="filter-select"
-                          value={logFilters.invocation_tool_id || undefined}
-                          onChange={(value) => setLogFilters((current) => ({ ...current, invocation_tool_id: value || "" }))}
-                          options={toolOptions}
-                          optionFilterProp="label"
-                        />
-                        <Select
-                          allowClear
-                          placeholder={t("Invocation status")}
-                          className="filter-select"
-                          value={logFilters.invocation_status || undefined}
-                          onChange={(value) => setLogFilters((current) => ({ ...current, invocation_status: value || "" }))}
-                          options={[
-                            { value: "success" },
-                            { value: "failed" },
-                            { value: "denied" },
-                            { value: "pending_approval" },
-                          ]}
-                        />
-                        <Select
-                          allowClear
-                          placeholder={t("Audit event")}
-                          className="filter-select"
-                          value={logFilters.audit_event_type || undefined}
-                          onChange={(value) => setLogFilters((current) => ({ ...current, audit_event_type: value || "" }))}
-                          options={[
-                            { value: "tool.invoke.succeeded" },
-                            { value: "tool.invoke.denied" },
-                            { value: "tool.invoke.pending_approval" },
-                            { value: "approval.approved.executed" },
-                            { value: "approval.rejected" },
-                          ]}
-                        />
-                        <Select
-                          allowClear
-                          placeholder={t("Audit actor")}
-                          className="filter-select"
-                          value={logFilters.audit_actor_type || undefined}
-                          onChange={(value) => setLogFilters((current) => ({ ...current, audit_actor_type: value || "" }))}
-                          options={[{ value: "admin" }, { value: "agent" }, { value: "approver" }]}
-                        />
-                        <Select
-                          allowClear
-                          placeholder={t("Audit resource")}
-                          className="filter-select"
-                          value={logFilters.audit_resource_type || undefined}
-                          onChange={(value) => setLogFilters((current) => ({ ...current, audit_resource_type: value || "" }))}
-                          options={[{ value: "agent" }, { value: "tool" }, { value: "policy" }, { value: "approval" }]}
-                        />
-                        <Select
-                          allowClear
-                          placeholder={t("Approval status")}
-                          className="filter-select"
-                          value={logFilters.approval_status || undefined}
-                          onChange={(value) => setLogFilters((current) => ({ ...current, approval_status: value || "" }))}
-                          options={[{ value: "pending" }, { value: "approved" }, { value: "rejected" }]}
-                        />
-                        <Input
-                          className="filter-datetime"
-                          type="datetime-local"
-                          value={logFilters.from}
-                          onChange={(event) => setLogFilters((current) => ({ ...current, from: event.target.value }))}
-                        />
-                        <Input
-                          className="filter-datetime"
-                          type="datetime-local"
-                          value={logFilters.to}
-                          onChange={(event) => setLogFilters((current) => ({ ...current, to: event.target.value }))}
-                        />
-                        <InputNumber
-                          min={1}
-                          max={500}
-                          value={logFilters.limit}
-                          onChange={(value) => setLogFilters((current) => ({ ...current, limit: value || 100 }))}
-                        />
-                        <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
-                          {t("Apply")}
-                        </Button>
+                    <Card
+                      className="workspace-card"
+                      title={t("Audit")}
+                      extra={
                         <Button icon={<DownloadOutlined />} onClick={downloadEvidence}>
                           {t("Export Evidence")}
                         </Button>
-                        <Button onClick={resetLogFilters}>{t("Reset")}</Button>
-                      </Space>
+                      }
+                    >
+                      <Collapse
+                        ghost
+                        items={[
+                          {
+                            key: "filters",
+                            label: t("Apply"),
+                            children: (
+                              <Space wrap className="toolbar">
+                                <Select
+                                  allowClear
+                                  showSearch
+                                  placeholder={t("Agent")}
+                                  className="filter-select"
+                                  value={logFilters.invocation_agent_id || undefined}
+                                  onChange={(value) => setLogFilters((current) => ({ ...current, invocation_agent_id: value || "" }))}
+                                  options={agentOptions}
+                                  optionFilterProp="label"
+                                />
+                                <Select
+                                  allowClear
+                                  showSearch
+                                  placeholder={t("Tool")}
+                                  className="filter-select"
+                                  value={logFilters.invocation_tool_id || undefined}
+                                  onChange={(value) => setLogFilters((current) => ({ ...current, invocation_tool_id: value || "" }))}
+                                  options={toolOptions}
+                                  optionFilterProp="label"
+                                />
+                                <Select
+                                  allowClear
+                                  placeholder={t("Invocation status")}
+                                  className="filter-select"
+                                  value={logFilters.invocation_status || undefined}
+                                  onChange={(value) => setLogFilters((current) => ({ ...current, invocation_status: value || "" }))}
+                                  options={[
+                                    { value: "success" },
+                                    { value: "failed" },
+                                    { value: "denied" },
+                                    { value: "pending_approval" },
+                                  ]}
+                                />
+                                <Select
+                                  allowClear
+                                  placeholder={t("Audit event")}
+                                  className="filter-select"
+                                  value={logFilters.audit_event_type || undefined}
+                                  onChange={(value) => setLogFilters((current) => ({ ...current, audit_event_type: value || "" }))}
+                                  options={[
+                                    { value: "tool.invoke.succeeded" },
+                                    { value: "tool.invoke.denied" },
+                                    { value: "tool.invoke.pending_approval" },
+                                    { value: "approval.approved.executed" },
+                                    { value: "approval.rejected" },
+                                  ]}
+                                />
+                                <Select
+                                  allowClear
+                                  placeholder={t("Audit actor")}
+                                  className="filter-select"
+                                  value={logFilters.audit_actor_type || undefined}
+                                  onChange={(value) => setLogFilters((current) => ({ ...current, audit_actor_type: value || "" }))}
+                                  options={[{ value: "admin" }, { value: "agent" }, { value: "approver" }]}
+                                />
+                                <Select
+                                  allowClear
+                                  placeholder={t("Audit resource")}
+                                  className="filter-select"
+                                  value={logFilters.audit_resource_type || undefined}
+                                  onChange={(value) => setLogFilters((current) => ({ ...current, audit_resource_type: value || "" }))}
+                                  options={[{ value: "agent" }, { value: "tool" }, { value: "policy" }, { value: "approval" }]}
+                                />
+                                <Select
+                                  allowClear
+                                  placeholder={t("Approval status")}
+                                  className="filter-select"
+                                  value={logFilters.approval_status || undefined}
+                                  onChange={(value) => setLogFilters((current) => ({ ...current, approval_status: value || "" }))}
+                                  options={[{ value: "pending" }, { value: "approved" }, { value: "rejected" }]}
+                                />
+                                <Input
+                                  className="filter-datetime"
+                                  type="datetime-local"
+                                  value={logFilters.from}
+                                  onChange={(event) => setLogFilters((current) => ({ ...current, from: event.target.value }))}
+                                />
+                                <Input
+                                  className="filter-datetime"
+                                  type="datetime-local"
+                                  value={logFilters.to}
+                                  onChange={(event) => setLogFilters((current) => ({ ...current, to: event.target.value }))}
+                                />
+                                <InputNumber
+                                  min={1}
+                                  max={500}
+                                  value={logFilters.limit}
+                                  onChange={(value) => setLogFilters((current) => ({ ...current, limit: value || 100 }))}
+                                />
+                                <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
+                                  {t("Apply")}
+                                </Button>
+                                <Button onClick={resetLogFilters}>{t("Reset")}</Button>
+                              </Space>
+                            ),
+                          },
+                        ]}
+                      />
                     </Card>
                   </Col>
                   <Col xs={24}>
@@ -1536,107 +1527,52 @@ export default function App() {
               key: "policies",
               label: t("Policies"),
               children: (
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} lg={8}>
-                    <Card title={t("Create Policy")}>
-                      <Form form={policyForm} layout="vertical" onFinish={createPolicy}>
-                        <Form.Item name="name" label={t("Name")} initialValue="Deny delete_user" rules={[{ required: true }]}>
-                          <Input />
-                        </Form.Item>
-                        <Row gutter={12}>
-                          <Col span={12}>
-                            <Form.Item name="action" label={t("Action")} initialValue="deny">
-                              <Select options={[{ value: "deny" }, { value: "allow" }, { value: "approve" }, { value: "redact" }]} />
-                            </Form.Item>
-                          </Col>
-                          <Col span={12}>
-                            <Form.Item name="priority" label={t("Priority")} initialValue={10}>
-                              <InputNumber min={1} max={10000} className="full-width" />
-                            </Form.Item>
-                          </Col>
-                        </Row>
-                        <Form.Item name="description" label={t("Description")}>
-                          <Input.TextArea rows={2} />
-                        </Form.Item>
-                        <Form.Item name="condition_json" label={t("Condition JSON")} initialValue={'{"tool":"delete_user"}'}>
-                          <Input.TextArea rows={4} />
-                        </Form.Item>
-                        <Form.Item
-                          name="scope"
-                          label={t("Scope JSON")}
-                          initialValue={"{}"}
-                          tooltip={t("Use scope.redaction for custom redact fields or regex patterns.")}
-                        >
-                          <Input.TextArea
-                            rows={5}
-                            placeholder={
-                              '{\n  "redaction": {\n    "fields": ["$.profile.external_id"],\n    "patterns": [{ "pattern": "TCK-\\\\d+", "replacement": "TCK-***" }]\n  }\n}'
-                            }
-                          />
-                        </Form.Item>
-                        <Button icon={<PlusOutlined />} type="primary" htmlType="submit" block>
-                          {t("Create Policy")}
-                        </Button>
-                      </Form>
-                    </Card>
-                    <Card title={t("Preview Policy")} className="stacked-card">
-                      <Form
-                        form={policyPreviewForm}
-                        layout="vertical"
-                        onFinish={previewPolicy}
-                        initialValues={{ input: '{\n  "amount": 150,\n  "reason": "VIP customer escalation"\n}' }}
-                      >
-                        <Form.Item name="agent_id" label={t("Agent")} rules={[{ required: true }]}>
-                          <Select showSearch options={agentOptions} optionFilterProp="label" />
-                        </Form.Item>
-                        <Form.Item name="tool_id" label={t("Tool")} rules={[{ required: true }]}>
-                          <Select showSearch options={toolOptions} optionFilterProp="label" />
-                        </Form.Item>
-                        <Form.Item name="input" label={t("Input JSON")}>
-                          <Input.TextArea rows={5} />
-                        </Form.Item>
-                        <Button icon={<PlayCircleOutlined />} type="primary" htmlType="submit" block>
-                          {t("Preview Decision")}
-                        </Button>
-                      </Form>
-                    </Card>
-                  </Col>
-                  <Col xs={24} lg={16}>
-                    <Card title={t("Policy List")}>
-                      <Space wrap className="toolbar">
-                        <Select
-                          allowClear
-                          placeholder={t("Action")}
-                          value={policyFilters.action || undefined}
-                          onChange={(value) => setPolicyFilters((current) => ({ ...current, action: value || "" }))}
-                          options={[
-                            { value: "allow" },
-                            { value: "deny" },
-                            { value: "approve" },
-                            { value: "redact" },
-                          ]}
-                          style={{ width: 140 }}
-                        />
-                        <Select
-                          allowClear
-                          placeholder={t("Enabled")}
-                          value={policyFilters.enabled || undefined}
-                          onChange={(value) => setPolicyFilters((current) => ({ ...current, enabled: value || "" }))}
-                          options={[
-                            { value: "true", label: t("Enabled") },
-                            { value: "false", label: t("Disabled") },
-                          ]}
-                          style={{ width: 140 }}
-                        />
-                        <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
-                          {t("Apply")}
-                        </Button>
-                        <Button onClick={resetPolicyFilters}>{t("Reset")}</Button>
-                      </Space>
-                      <Table rowKey="id" columns={policyColumns} dataSource={policies} loading={loading} pagination={false} />
-                    </Card>
-                  </Col>
-                </Row>
+                <Card
+                  className="workspace-card"
+                  title={t("Policy List")}
+                  extra={
+                    <Space wrap>
+                      <Button icon={<PlayCircleOutlined />} onClick={() => setPolicyPreviewDrawerOpen(true)}>
+                        {t("Preview Policy")}
+                      </Button>
+                      <Button icon={<PlusOutlined />} type="primary" onClick={() => setPolicyDrawerOpen(true)}>
+                        {t("Create Policy")}
+                      </Button>
+                    </Space>
+                  }
+                >
+                  <Space wrap className="toolbar">
+                    <Select
+                      allowClear
+                      placeholder={t("Action")}
+                      value={policyFilters.action || undefined}
+                      onChange={(value) => setPolicyFilters((current) => ({ ...current, action: value || "" }))}
+                      options={[
+                        { value: "allow" },
+                        { value: "deny" },
+                        { value: "approve" },
+                        { value: "redact" },
+                      ]}
+                      style={{ width: 140 }}
+                    />
+                    <Select
+                      allowClear
+                      placeholder={t("Enabled")}
+                      value={policyFilters.enabled || undefined}
+                      onChange={(value) => setPolicyFilters((current) => ({ ...current, enabled: value || "" }))}
+                      options={[
+                        { value: "true", label: t("Enabled") },
+                        { value: "false", label: t("Disabled") },
+                      ]}
+                      style={{ width: 140 }}
+                    />
+                    <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
+                      {t("Apply")}
+                    </Button>
+                    <Button onClick={resetPolicyFilters}>{t("Reset")}</Button>
+                  </Space>
+                  <Table rowKey="id" columns={policyColumns} dataSource={policies} loading={loading} pagination={false} />
+                </Card>
               ),
             },
           ]}
@@ -1931,6 +1867,140 @@ export default function App() {
             </div>
           ) : null}
         </Modal>
+
+        <Drawer title={t("Create Agent")} open={agentDrawerOpen} onClose={closeAgentDrawer} width={420} destroyOnClose>
+          <Form form={agentForm} layout="vertical" onFinish={createAgent}>
+            <Form.Item name="name" label={t("Name")} initialValue="customer-service-agent" rules={[{ required: true }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item name="owner" label={t("Owner")} initialValue="ops">
+              <Input />
+            </Form.Item>
+            <Form.Item name="source_type" label={t("Source")} initialValue="custom">
+              <Select options={[{ value: "custom" }, { value: "workflow" }, { value: "assistant" }]} />
+            </Form.Item>
+            <Form.Item name="description" label={t("Description")}>
+              <Input.TextArea rows={3} />
+            </Form.Item>
+            <Button icon={<PlusOutlined />} type="primary" htmlType="submit" block>
+              {t("Create Agent")}
+            </Button>
+          </Form>
+        </Drawer>
+
+        <Drawer title={t("Create HTTP Tool")} open={toolDrawerOpen} onClose={closeToolDrawer} width={520} destroyOnClose>
+          <Form form={toolForm} layout="vertical" onFinish={createTool}>
+            <Form.Item name="name" label={t("Name")} initialValue="refund_order" rules={[{ required: true }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item
+              name="endpoint"
+              label={t("Endpoint")}
+              initialValue="http://mock-api:9090/mock/refund_order"
+              rules={[{ required: true }]}
+            >
+              <Input />
+            </Form.Item>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item name="method" label={t("Method")} initialValue="POST">
+                  <Select options={[{ value: "POST" }, { value: "GET" }]} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="timeout_ms" label={t("Timeout")} initialValue={5000}>
+                  <InputNumber min={100} max={60000} step={500} className="full-width" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="risk_level" label={t("Risk")} initialValue="medium">
+              <Select options={[{ value: "low" }, { value: "medium" }, { value: "high" }]} />
+            </Form.Item>
+            <Form.Item name="owner" label={t("Owner")} initialValue="ops">
+              <Input />
+            </Form.Item>
+            <Form.Item name="headers" label={t("Headers JSON")} tooltip={t("Authorization and API-key headers are stored encrypted")}>
+              <Input.TextArea rows={3} />
+            </Form.Item>
+            <Form.Item
+              name="input_schema"
+              label={t("Input Schema JSON")}
+              initialValue='{"type":"object","required":["order_id","amount"],"properties":{"order_id":{"type":"string"},"amount":{"type":"number","minimum":1},"reason":{"type":"string"}}}'
+            >
+              <Input.TextArea rows={5} />
+            </Form.Item>
+            <Form.Item name="output_schema" label={t("Output Schema JSON")} initialValue="{}">
+              <Input.TextArea rows={3} />
+            </Form.Item>
+            <Button icon={<PlusOutlined />} type="primary" htmlType="submit" block>
+              {t("Create Tool")}
+            </Button>
+          </Form>
+        </Drawer>
+
+        <Drawer title={t("Create Policy")} open={policyDrawerOpen} onClose={closePolicyDrawer} width={520} destroyOnClose>
+          <Form form={policyForm} layout="vertical" onFinish={createPolicy}>
+            <Form.Item name="name" label={t("Name")} initialValue="Deny delete_user" rules={[{ required: true }]}>
+              <Input />
+            </Form.Item>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item name="action" label={t("Action")} initialValue="deny">
+                  <Select options={[{ value: "deny" }, { value: "allow" }, { value: "approve" }, { value: "redact" }]} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="priority" label={t("Priority")} initialValue={10}>
+                  <InputNumber min={1} max={10000} className="full-width" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="description" label={t("Description")}>
+              <Input.TextArea rows={2} />
+            </Form.Item>
+            <Form.Item name="condition_json" label={t("Condition JSON")} initialValue={'{"tool":"delete_user"}'}>
+              <Input.TextArea rows={4} />
+            </Form.Item>
+            <Form.Item
+              name="scope"
+              label={t("Scope JSON")}
+              initialValue={"{}"}
+              tooltip={t("Use scope.redaction for custom redact fields or regex patterns.")}
+            >
+              <Input.TextArea
+                rows={5}
+                placeholder={
+                  '{\n  "redaction": {\n    "fields": ["$.profile.external_id"],\n    "patterns": [{ "pattern": "TCK-\\\\d+", "replacement": "TCK-***" }]\n  }\n}'
+                }
+              />
+            </Form.Item>
+            <Button icon={<PlusOutlined />} type="primary" htmlType="submit" block>
+              {t("Create Policy")}
+            </Button>
+          </Form>
+        </Drawer>
+
+        <Drawer title={t("Preview Policy")} open={policyPreviewDrawerOpen} onClose={closePolicyPreviewDrawer} width={520} destroyOnClose>
+          <Form
+            form={policyPreviewForm}
+            layout="vertical"
+            onFinish={previewPolicy}
+            initialValues={{ input: '{\n  "amount": 150,\n  "reason": "VIP customer escalation"\n}' }}
+          >
+            <Form.Item name="agent_id" label={t("Agent")} rules={[{ required: true }]}>
+              <Select showSearch options={agentOptions} optionFilterProp="label" />
+            </Form.Item>
+            <Form.Item name="tool_id" label={t("Tool")} rules={[{ required: true }]}>
+              <Select showSearch options={toolOptions} optionFilterProp="label" />
+            </Form.Item>
+            <Form.Item name="input" label={t("Input JSON")}>
+              <Input.TextArea rows={5} />
+            </Form.Item>
+            <Button icon={<PlayCircleOutlined />} type="primary" htmlType="submit" block>
+              {t("Preview Decision")}
+            </Button>
+          </Form>
+        </Drawer>
 
         <Modal
           title={t("Test Tool")}
