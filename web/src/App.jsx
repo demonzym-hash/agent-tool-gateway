@@ -44,6 +44,7 @@ import {
 } from "@ant-design/icons";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
+import { canDecideApproval, getOverviewAttentionData } from "./overviewAttention.js";
 
 const { Header, Content } = Layout;
 const { Text, Title } = Typography;
@@ -188,6 +189,17 @@ const zhText = {
   "Action Counts": "动作统计",
   "Policy IDs": "策略 ID",
   Overview: "概览",
+  "Needs Attention": "待处理事项",
+  "Failed / Denied Calls": "失败 / 拒绝调用",
+  "Risk & Governance": "风险与治理",
+  "No pending approvals": "暂无待审批",
+  "No failed or denied calls": "暂无失败或拒绝调用",
+  "No high risk tools": "暂无高风险工具",
+  "High Risk Tools": "高风险工具",
+  "Enabled Policies": "启用策略",
+  "Disabled Policies": "禁用策略",
+  "Redact Policies": "脱敏策略",
+  "Approve Policies": "审批策略",
   Evidence: "证据",
   "Raw JSON": "原始 JSON",
   Payload: "载荷",
@@ -483,6 +495,10 @@ export default function App() {
       averageLatency,
     };
   }, [approvals, invocations]);
+  const attentionData = useMemo(
+    () => getOverviewAttentionData({ approvals, invocations, tools, policies }),
+    [approvals, invocations, tools, policies],
+  );
 
   function logQuery(path) {
     const params = new URLSearchParams();
@@ -967,6 +983,7 @@ export default function App() {
       });
       setInvokeResult({ tool: "approval", ...data });
       message.success(action === "approve" ? t("Approval executed") : t("Approval rejected"));
+      setSelectedApproval(null);
       await refresh();
     } catch (error) {
       message.error(error.message);
@@ -1321,6 +1338,86 @@ export default function App() {
             <MetricCard title={t("Avg Latency")} value={dashboardStats.averageLatency} suffix="ms" />
           </Col>
         </Row>
+
+        <section className="attention-section" aria-label={t("Needs Attention")}>
+          <PageHeader title={t("Needs Attention")} />
+          <div className="attention-grid">
+            <Card className="attention-card" title={t("Pending Approvals")}>
+              {attentionData.pendingApprovals.length ? (
+                <div className="attention-list">
+                  {attentionData.pendingApprovals.map((approval) => (
+                    <div className="attention-item" key={approval.id}>
+                      <div className="attention-item-header">
+                        <Text strong>{approval.reason || "-"}</Text>
+                        <StatusTag status={approval.status} t={t} />
+                      </div>
+                      <div className="attention-meta">{approval.created_at ? new Date(approval.created_at).toLocaleString() : "-"}</div>
+                      <div className="attention-actions">
+                        <Button size="small" icon={<EyeOutlined />} onClick={() => openApprovalDetails(approval)}>
+                          {t("Details")}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Text type="secondary">{t("No pending approvals")}</Text>
+              )}
+            </Card>
+
+            <Card className="attention-card" title={t("Failed / Denied Calls")}>
+              {attentionData.failedInvocations.length ? (
+                <div className="attention-list">
+                  {attentionData.failedInvocations.map((invocation) => (
+                    <div className="attention-item" key={invocation.id}>
+                      <div className="attention-item-header">
+                        <Text strong>{invocation.tool_name || "-"}</Text>
+                        <StatusTag status={invocation.status} t={t} />
+                      </div>
+                      <div className="attention-meta">{invocation.agent_name || "-"}</div>
+                      <div className="attention-meta">{invocation.created_at ? new Date(invocation.created_at).toLocaleString() : "-"}</div>
+                      <div className="attention-meta">{invocation.error_message || invocation.matched_policy_id || "-"}</div>
+                      <div className="attention-actions">
+                        <Button size="small" icon={<EyeOutlined />} onClick={() => openInvocationDetails(invocation)}>
+                          {t("Details")}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Text type="secondary">{t("No failed or denied calls")}</Text>
+              )}
+            </Card>
+
+            <Card className="attention-card" title={t("Risk & Governance")}>
+              <div className="attention-summary">
+                <Tag color="green">{t("Enabled Policies")} {attentionData.policySummary.enabled}</Tag>
+                <Tag>{t("Disabled Policies")} {attentionData.policySummary.disabled}</Tag>
+                <Tag color="blue">{t("Redact Policies")} {attentionData.policySummary.redact}</Tag>
+                <Tag color="gold">{t("Approve Policies")} {attentionData.policySummary.approve}</Tag>
+              </div>
+              <div className="attention-subtitle">{t("High Risk Tools")}</div>
+              {attentionData.highRiskTools.length ? (
+                <div className="attention-list">
+                  {attentionData.highRiskTools.map((tool) => (
+                    <div className="attention-item" key={tool.id}>
+                      <div className="attention-item-header">
+                        <Text strong>{tool.name}</Text>
+                        <StatusTag status={tool.status} t={t} />
+                      </div>
+                      <div className="attention-meta">{t("Owner")}: {tool.owner || "-"}</div>
+                      <div className="attention-meta">{t("Endpoint")}: {tool.endpoint || "-"}</div>
+                      <div className="attention-meta">{t("Risk")}: {tool.risk_level || "-"}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Text type="secondary">{t("No high risk tools")}</Text>
+              )}
+            </Card>
+          </div>
+        </section>
 
         {oneTimeKey ? (
           <Alert
@@ -2135,6 +2232,26 @@ export default function App() {
             <Space wrap size={8}>
               {selectedApproval ? <StatusTag status={selectedApproval.status} t={t} /> : null}
               <Text strong>{selectedApproval?.reason || "-"}</Text>
+            </Space>
+            <Space wrap className="detail-drawer-actions">
+              <Button
+                type="primary"
+                disabled={!canDecideApproval(selectedApproval)}
+                onClick={() => decideApproval(selectedApproval, "approve")}
+              >
+                {t("Approve")}
+              </Button>
+              <Popconfirm
+                title={t("Reject this approval?")}
+                okText={t("Reject")}
+                okButtonProps={{ danger: true }}
+                onConfirm={() => decideApproval(selectedApproval, "reject")}
+                disabled={!canDecideApproval(selectedApproval)}
+              >
+                <Button danger disabled={!canDecideApproval(selectedApproval)}>
+                  {t("Reject")}
+                </Button>
+              </Popconfirm>
             </Space>
             <div className="detail-drawer-meta">
               <Text type="secondary">
