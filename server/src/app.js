@@ -1006,6 +1006,39 @@ export function createApp({
     }),
   );
 
+  app.delete(
+    "/api/v1/tools/:id",
+    requireAdmin,
+    asyncHandler(async (req, res) => {
+      const references = await query(
+        `SELECT
+           (SELECT COUNT(*)::int FROM invocations WHERE tool_id = $1) AS invocation_count,
+           (SELECT COUNT(*)::int FROM approvals a JOIN invocations i ON i.id = a.invocation_id WHERE i.tool_id = $1) AS approval_count`,
+        [req.params.id],
+      );
+      const invocationCount = Number(references.rows[0]?.invocation_count || 0);
+      const approvalCount = Number(references.rows[0]?.approval_count || 0);
+      if (invocationCount || approvalCount) {
+        throw new HttpError(409, "tool_has_history", "Tool has invocation or approval history. Disable it instead.", {
+          invocation_count: invocationCount,
+          approval_count: approvalCount,
+        });
+      }
+
+      const result = await query("DELETE FROM tools WHERE id = $1 RETURNING *", [req.params.id]);
+      if (!result.rowCount) throw notFound("Tool");
+      await writeAuditLog({
+        event_type: "tool.deleted",
+        actor_type: "admin",
+        actor_id: "local",
+        resource_type: "tool",
+        resource_id: req.params.id,
+        detail_json: { name: result.rows[0].name },
+      });
+      res.json({ tool: publicTool(result.rows[0], secretManager) });
+    }),
+  );
+
   app.post(
     "/api/v1/policies",
     requireAdmin,

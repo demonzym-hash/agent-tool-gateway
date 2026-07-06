@@ -11,6 +11,7 @@ const requiredFragments = [
   "/api/v1/tools:",
   "/api/v1/openapi/import/preview:",
   "/api/v1/openapi/import/tools:",
+  "Delete an unused tool",
   "/api/v1/policies:",
   "/api/v1/policies/{id}:",
   "/api/v1/policies/{id}/disable:",

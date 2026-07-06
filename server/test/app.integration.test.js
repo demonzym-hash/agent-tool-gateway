@@ -193,6 +193,22 @@ function createFakeDb() {
       return result([tool]);
     }
 
+    if (normalized.startsWith("SELECT (SELECT COUNT(*)::int FROM invocations WHERE tool_id = $1)")) {
+      const invocationCount = db.invocations.filter((invocation) => invocation.tool_id === params[0]).length;
+      const approvalCount = db.approvals.filter((approval) => {
+        const invocation = db.invocations.find((item) => item.id === approval.invocation_id);
+        return invocation?.tool_id === params[0];
+      }).length;
+      return result([{ invocation_count: invocationCount, approval_count: approvalCount }]);
+    }
+
+    if (normalized.startsWith("DELETE FROM tools WHERE id = $1")) {
+      const index = db.tools.findIndex((item) => item.id === params[0]);
+      if (index === -1) return result([]);
+      const [tool] = db.tools.splice(index, 1);
+      return result([tool]);
+    }
+
     if (normalized.startsWith("INSERT INTO policies")) {
       const row = {
         id: crypto.randomUUID(),
@@ -698,6 +714,52 @@ describe("ATG API flow", () => {
 
     const tools = await jsonFetch(`${atgBaseUrl}/api/v1/tools`);
     assert.equal(tools.data.tools.some((tool) => tool.name === "import_refund_order"), true);
+  });
+
+  it("deletes unused tools and rejects deletion when invocation history exists", async () => {
+    const unusedTool = await jsonFetch(`${atgBaseUrl}/api/v1/tools`, {
+      method: "POST",
+      body: JSON.stringify({
+        name: "temporary_imported_tool",
+        endpoint: `${mockBaseUrl}/mock/refund_order`,
+        method: "POST",
+        headers: {},
+      }),
+    });
+    assert.equal(unusedTool.response.status, 201);
+
+    const deleted = await jsonFetch(`${atgBaseUrl}/api/v1/tools/${unusedTool.data.tool.id}`, {
+      method: "DELETE",
+    });
+    assert.equal(deleted.response.status, 200);
+    assert.equal(deleted.data.tool.name, "temporary_imported_tool");
+    assert.equal(fake.db.tools.some((tool) => tool.name === "temporary_imported_tool"), false);
+
+    const agent = await jsonFetch(`${atgBaseUrl}/api/v1/agents`, {
+      method: "POST",
+      body: JSON.stringify({ name: "delete-history-agent" }),
+    });
+    const usedTool = await jsonFetch(`${atgBaseUrl}/api/v1/tools`, {
+      method: "POST",
+      body: JSON.stringify({
+        name: "used_tool_delete_guard",
+        endpoint: `${mockBaseUrl}/mock/refund_order`,
+        method: "POST",
+        headers: {},
+      }),
+    });
+    const invoked = await jsonFetch(`${atgBaseUrl}/api/v1/invoke/used_tool_delete_guard`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${agent.data.api_key}` },
+      body: JSON.stringify({ order_id: "ord_delete_guard", amount: 10 }),
+    });
+    assert.equal(invoked.response.status, 200);
+
+    const rejected = await jsonFetch(`${atgBaseUrl}/api/v1/tools/${usedTool.data.tool.id}`, {
+      method: "DELETE",
+    });
+    assert.equal(rejected.response.status, 409);
+    assert.equal(rejected.data.error.code, "tool_has_history");
   });
 
   it("returns a failed Tool test result when the upstream endpoint is unreachable", async () => {

@@ -140,6 +140,37 @@ body {
   margin-top: 16px;
 }
 
+.import-step {
+  margin-top: 20px;
+}
+
+.import-review-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.import-review-main,
+.import-inspector {
+  min-width: 0;
+}
+
+.import-inspector {
+  padding: 12px;
+  border: 1px solid #d9e4df;
+  border-radius: 8px;
+  background: #fbfdfc;
+}
+
+.import-inspector h5 {
+  margin-top: 0;
+}
+
+.import-actions {
+  margin-top: 16px;
+}
+
 .detail-tabs {
   margin-top: -8px;
 }
@@ -205,6 +236,10 @@ body {
   }
 
   .detail-json-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .import-review-grid {
     grid-template-columns: 1fr;
   }
 }

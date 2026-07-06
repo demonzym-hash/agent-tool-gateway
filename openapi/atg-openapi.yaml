@@ -211,6 +211,24 @@ paths:
                 properties:
                   tool:
                     $ref: "#/components/schemas/Tool"
+    delete:
+      tags: [Tools]
+      summary: Delete an unused tool
+      description: Deletes a Tool only when it has no invocation or approval history. Use disable for Tools that already have history.
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Deleted tool
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tool:
+                    $ref: "#/components/schemas/Tool"
+        "409":
+          description: Tool has invocation or approval history and should be disabled instead.
   /api/v1/tools/{id}/test:
     post:
       tags: [Tools]
